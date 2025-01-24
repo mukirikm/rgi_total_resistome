@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch
 from app.Mutations import MutationsModule
-from app.VM import Variant
+from app.VariantModel import Variant
 
 # inputs = "inputs/"
 # outputs = "outputs/"

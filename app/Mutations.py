@@ -72,12 +72,12 @@ class MutationsModule(BaseModel):
     #                     test_modelid = self.single_resistance_variant()
     #                     return test_modelid, self.align_title
     
-    def indiv_snps(self, snp_dict_list):
-        """
-        Spits out individual SNPs in input data.
-        """
-        for eachs in snp_dict_list:
-            return eachs
+    # def indiv_snps(self, snp_dict_list):
+    #     """
+    #     Spits out individual SNPs in input data.
+    #     """
+    #     for eachs in snp_dict_list:
+    #         return eachs
 
 
     def single_resistance_variant(self, predicted_genes_dict_protein, submitted_proteins_dict, snp_dict_list, real_query_length, real_sbjct_length, hsp_query, hsp_sbjct_start, hsp_sbjct, hsp_frame, orf_info): 
@@ -96,9 +96,13 @@ class MutationsModule(BaseModel):
         #       "\norf info\n", orf_info)
         
         for eachs in snp_dict_list:
+            srv_output = {}
+
             pos = eachs["position"]
             ori = eachs["original"]
             chan = eachs["change"]
+
+            srv_output["eachs"] = eachs
 
             if hsp_sbjct_start < pos and (hsp_sbjct_start + real_sbjct_length) > pos:
                 orf_protein_sequence = ""
@@ -112,16 +116,16 @@ class MutationsModule(BaseModel):
                 if predicted_genes_dict_protein:
                     if orf_info.strip() in predicted_genes_dict_protein.keys():
                         orf_protein_sequence = predicted_genes_dict_protein[orf_info.decode()].strip("*")
-                        yield orf_protein_sequence
+                        srv_output["orf_protein_sequence"] = orf_protein_sequence
                         # print(orf_protein_sequence)
                     else:
                         orf_protein_sequence = predicted_genes_dict_protein[orf_info.decode()[:orf_info.decode().index(' # ')]].strip("*")
-                        yield orf_protein_sequence
+                        srv_output["orf_protein_sequence"] = orf_protein_sequence
                         # print(orf_protein_sequence)
 
                 if submitted_proteins_dict:
                     orf_protein_sequence = str(submitted_proteins_dict[orf_info.decode().split(" ")[0]])
-                    yield orf_protein_sequence
+                    srv_output["orf_protein_sequence"] = orf_protein_sequence
                     # print(orf_protein_sequence)
 
                 # logger.info("mutation | Model:"+str(model_id) + " | pos:" +str(pos) +" | change: "+str(hsp.query[pos - hsp.sbjct_start + \
@@ -150,9 +154,9 @@ class MutationsModule(BaseModel):
                     query_snps = {"original": ori, "change": chan ,"position": d+1}
                     # logger.debug("query_snp on frame {} {}".format(hsp.frame, json.dumps(query_snps, indent=2)))
 
-                    yield query_snps
+                    srv_output["query_snps"] = query_snps
             #         # print(query_snps)
-            # return eachs
+            return srv_output
 
 # # def frameshift(self):
 # #     pass
