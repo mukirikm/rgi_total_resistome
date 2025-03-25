@@ -13,35 +13,35 @@ class Variant(MutationsModule):
 		self.output = {}
 		self.working_directory = working_directory
 
-        self.local_database = local_database
-        self.data = data_path
+		self.local_database = local_database
+		self.data = data_path
 
-        self.include_nudge = include_nudge
+		self.include_nudge = include_nudge
 
-        if self.local_database:
-            self.db = LOCAL_DATABASE
-            self.data = LOCAL_DATABASE
+		if self.local_database:
+			self.db = LOCAL_DATABASE
+			self.data = LOCAL_DATABASE
 
-    def __repr__(self):
-        """Returns Variant class full object."""
-        return "Variant({}".format(self.__dict__)
+	def __repr__(self):
+		"""Returns Variant class full object."""
+		return "Variant({}".format(self.__dict__)
 
-    def run(self):
-        blastResults = {}
-        predicted_genes_dict = {}
-        predicted_genes_dict_protein = {}
-        submitted_proteins_dict = {}
-        orf = 0
+	def run(self):
+		blastResults = {}
+		predicted_genes_dict = {}
+		predicted_genes_dict_protein = {}
+		submitted_proteins_dict = {}
+		orf = 0
 
-        if self.input_type == "contig":
-            predicted_genes_dict = self.get_orf_dna_sequence(
-                self.input_sequence, self.input_type)
-            predicted_genes_dict_protein = self.get_orf_protein_sequence(
-                self.input_sequence, self.input_type)
+		if self.input_type == "contig":
+			predicted_genes_dict = self.get_orf_dna_sequence(
+				self.input_sequence, self.input_type)
+			predicted_genes_dict_protein = self.get_orf_protein_sequence(
+				self.input_sequence, self.input_type)
 
-        if self.input_type == "protein":
-            submitted_proteins_dict = (
-                self.get_submitted_protein_sequence(self.input_sequence))
+		if self.input_type == "protein":
+			submitted_proteins_dict = (
+				self.get_submitted_protein_sequence(self.input_sequence))
 
 		# print(submitted_proteins_dict)
 
@@ -63,17 +63,17 @@ class Variant(MutationsModule):
 
 					orf_info = blast_record.query.encode('ascii','replace')
 
-                    c = 0
-                    barc = 0
-                    for eachc in orf_info:
-                        if barc >= 6:
-                            break
-                        elif eachc == '|':
-                            barc += 1
-                            c += 1
-                        else:
-                            c += 1
-                    orf_from = orf_info[c:]
+					c = 0
+					barc = 0
+					for eachc in orf_info:
+						if barc >= 6:
+							break
+						elif eachc == '|':
+							barc += 1
+							c += 1
+						else:
+							c += 1
+					orf_from = orf_info[c:]
 
 					model_type_id = self.extract_nth_bar(align_title, 0)
 					# logger.info("model_type_id: {} ".format(model_type_id))
@@ -89,12 +89,12 @@ class Variant(MutationsModule):
 					pass_value = self.extract_nth_bar(alignment.title, 1)
 					# logger.info("pass_value: {}".format(pass_value))
 
-                    if model_type_id == 40293:
-                        try:
-                            true_pass_evalue = float(pass_value)
-                        except ValueError:
-                            true_pass_evalue = float(
-                                pass_value[0:pass_value.find(' ')])
+					if model_type_id == 40293:
+						try:
+							true_pass_evalue = float(pass_value)
+						except ValueError:
+							true_pass_evalue = float(
+								pass_value[0:pass_value.find(' ')])
 
 						logger.info("mutation | model_type_id = " + str(align_title))
 						init = 0
@@ -119,13 +119,14 @@ class Variant(MutationsModule):
 							# print(orf_from.decode())
 
 							srv_result = self.single_resistance_variant(
-								predicted_genes_dict_protein, submitted_proteins_dict, snpl, real_sbjct_length, hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info, hsp, model_id, hit_id
+								predicted_genes_dict_protein, submitted_proteins_dict, snpl, real_sbjct_length, hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info
 								)	
 							
+							# print(srv_result)
 							# for s in srv_result:
-							# 	# print(s)
-							# 	if len(s) > 0:
-							# 		print(s)
+							# 	print(s)
+								# if len(s) > 0:
+								# 	print(s)
 							
 							for loaded_snp in srv_result:
 								if len(loaded_snp) > 0: ## to weed out SNPs without ORFs/qry
@@ -165,23 +166,23 @@ class Variant(MutationsModule):
 												else:
 													sinsidedict["partial"] = "0"
 
-                                                if self.input_type == 'contig':
-                                                    sinsidedict["query_start"] = self.extract_nth_hash(
-                                                        orf_info.decode(), 1) + (hsp.query_start - 1)*3
-                                                    sinsidedict["query_end"] = self.extract_nth_hash(
-                                                        orf_info.decode(), 1) + (hsp.query_start - 1)*3 + real_query_length*3 - 1
-                                                    sinsidedict["orf_strand"] = self.extract_nth_hash(
-                                                        orf_info.decode(), 3)
-                                                    sinsidedict["orf_start"] = self.extract_nth_hash(
-                                                        orf_info.decode(), 1)
-                                                    sinsidedict["orf_end"] = self.extract_nth_hash(
-                                                        orf_info.decode(), 2)
-                                                    sinsidedict["orf_from"] = self.extract_nth_hash(
-                                                        orf_info.decode(), 0)
-                                                    sinsidedict["hit_start"] = (
-                                                        hsp.sbjct_start-1)*3
-                                                    sinsidedict["hit_end"] = (
-                                                        hsp.sbjct_end)*3
+												if self.input_type == 'contig':
+													sinsidedict["query_start"] = self.extract_nth_hash(
+														orf_info.decode(), 1) + (hsp.query_start - 1)*3
+													sinsidedict["query_end"] = self.extract_nth_hash(
+														orf_info.decode(), 1) + (hsp.query_start - 1)*3 + real_query_length*3 - 1
+													sinsidedict["orf_strand"] = self.extract_nth_hash(
+														orf_info.decode(), 3)
+													sinsidedict["orf_start"] = self.extract_nth_hash(
+														orf_info.decode(), 1)
+													sinsidedict["orf_end"] = self.extract_nth_hash(
+														orf_info.decode(), 2)
+													sinsidedict["orf_from"] = self.extract_nth_hash(
+														orf_info.decode(), 0)
+													sinsidedict["hit_start"] = (
+														hsp.sbjct_start-1)*3
+													sinsidedict["hit_end"] = (
+														hsp.sbjct_end)*3
 
 													if orf_info.decode().split(' # ')[0] in predicted_genes_dict:
 														sinsidedict["orf_dna_sequence"] = predicted_genes_dict[orf_info.decode().split(' # ')[0]]
@@ -204,15 +205,15 @@ class Variant(MutationsModule):
 													sinsidedict["hit_start"] = ""
 													sinsidedict["hit_end"] = ""
 
-                                                elif self.input_type == 'read':
-                                                    pass
+												elif self.input_type == 'read':
+													pass
 
-                                                sinsidedict["perc_identity"] = float(format(
-                                                    float(sinsidedict["max_identities"]*100) / len(sinsidedict["query"]), '.2f'))
+												sinsidedict["perc_identity"] = float(format(
+													float(sinsidedict["max_identities"]*100) / len(sinsidedict["query"]), '.2f'))
 
-                                                strict["{}|hsp_num:{}".format(
-                                                    hit_id.decode(), init)] = sinsidedict
-                                                init += 1
+												strict["{}|hsp_num:{}".format(
+													hit_id.decode(), init)] = sinsidedict
+												init += 1
 
 											else:
 												slinsidedict = {}
@@ -246,23 +247,23 @@ class Variant(MutationsModule):
 												else:
 													slinsidedict["partial"] = "0"
 
-                                                if self.input_type == 'contig':
-                                                    slinsidedict["query_start"] = self.extract_nth_hash(
-                                                        orf_info.decode(), 1) + (hsp.query_start - 1)*3
-                                                    slinsidedict["query_end"] = self.extract_nth_hash(
-                                                        orf_info.decode(), 1) + (hsp.query_start - 1)*3 + real_query_length*3 - 1
-                                                    slinsidedict["orf_strand"] = self.extract_nth_hash(
-                                                        orf_info.decode(), 3)
-                                                    slinsidedict["orf_start"] = self.extract_nth_hash(
-                                                        orf_info.decode(), 1)
-                                                    slinsidedict["orf_end"] = self.extract_nth_hash(
-                                                        orf_info.decode(), 2)
-                                                    slinsidedict["orf_from"] = self.extract_nth_hash(
-                                                        orf_info.decode(), 0)
-                                                    slinsidedict["hit_start"] = (
-                                                        hsp.sbjct_start-1)*3
-                                                    slinsidedict["hit_end"] = (
-                                                        hsp.sbjct_end)*3
+												if self.input_type == 'contig':
+													slinsidedict["query_start"] = self.extract_nth_hash(
+														orf_info.decode(), 1) + (hsp.query_start - 1)*3
+													slinsidedict["query_end"] = self.extract_nth_hash(
+														orf_info.decode(), 1) + (hsp.query_start - 1)*3 + real_query_length*3 - 1
+													slinsidedict["orf_strand"] = self.extract_nth_hash(
+														orf_info.decode(), 3)
+													slinsidedict["orf_start"] = self.extract_nth_hash(
+														orf_info.decode(), 1)
+													slinsidedict["orf_end"] = self.extract_nth_hash(
+														orf_info.decode(), 2)
+													slinsidedict["orf_from"] = self.extract_nth_hash(
+														orf_info.decode(), 0)
+													slinsidedict["hit_start"] = (
+														hsp.sbjct_start-1)*3
+													slinsidedict["hit_end"] = (
+														hsp.sbjct_end)*3
 
 													if orf_info.decode().split(' # ')[0] in predicted_genes_dict:
 														slinsidedict["orf_dna_sequence"] = predicted_genes_dict[orf_info.decode().split(' # ')[0]]
@@ -285,13 +286,13 @@ class Variant(MutationsModule):
 													slinsidedict["hit_start"] = ""
 													slinsidedict["hit_end"] = ""
 
-                                                elif self.input_type == 'read':
-                                                    pass
+												elif self.input_type == 'read':
+													pass
 
-                                                slinsidedict["perc_identity"] = float(format(
-                                                    float(slinsidedict["max_identities"]*100) / len(slinsidedict["query"]), '.2f'))
-                                                loose["{}|hsp_num:{}".format(
-                                                    hit_id.decode(), init)] = slinsidedict
+												slinsidedict["perc_identity"] = float(format(
+													float(slinsidedict["max_identities"]*100) / len(slinsidedict["query"]), '.2f'))
+												loose["{}|hsp_num:{}".format(
+													hit_id.decode(), init)] = slinsidedict
 
 												# print(slinsidedict["perc_identity"])
 												init += 1

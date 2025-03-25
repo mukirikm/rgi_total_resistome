@@ -12,7 +12,7 @@ class MutationsModule(BaseModel):
         """         
         return "Mutation({}".format(self.__dict__)
 
-    def single_resistance_variant(self, predicted_genes_dict_protein, submitted_proteins_dict, snpl, real_sbjct_length, hsp_query, hsp_sbjct_start, hsp_sbjct, orf_info, hsp, model_id, hit_id): 
+    def single_resistance_variant(self, predicted_genes_dict_protein, submitted_proteins_dict, snpl, real_sbjct_length, hsp_query, hsp_sbjct_start, hsp_sbjct, orf_info): 
         """
         Searches for SNVs in sequences.
         """
@@ -46,6 +46,22 @@ class MutationsModule(BaseModel):
             pos = eachs["position"]
             ori = eachs["original"]
             chan = eachs["change"]
+
+            # wildtype
+            # wildtype = str(
+            #     hsp.sbjct[pos - hsp.sbjct_start + self.find_num_dash(hsp.sbjct, (pos-hsp.sbjct_start))])
+
+            # check for Var
+            if str(chan) == "Var":
+                # update to the change
+                chan = str(
+                    hsp_query[pos - hsp_sbjct_start + self.find_num_dash(hsp_sbjct, (pos-hsp_sbjct_start))])
+                # update eachs
+                eachs["change"] = chan
+                # print("var:", chan)
+            else:
+                chan = eachs["change"]
+                # print("normal:", chan)
 
             if hsp_sbjct_start < pos and (hsp_sbjct_start + real_sbjct_length) > pos:
                 orf_protein_sequence = ""
