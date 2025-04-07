@@ -21,6 +21,7 @@ class MutationsModule(BaseModel):
         srv_result =[]
 
         for each_snp in snpl:
+            # print(each_snp)
             # snp_dict_list.append({"original": each_snp[0], "change": each_snp[-1], "position": int(each_snp[1:-1])})
             position = int(
                 ''.join(filter(str.isdigit, each_snp)))
@@ -46,6 +47,7 @@ class MutationsModule(BaseModel):
             pos = eachs["position"]
             ori = eachs["original"]
             chan = eachs["change"]
+            # print("normal:", chan)
 
             # wildtype
             # wildtype = str(
@@ -59,9 +61,6 @@ class MutationsModule(BaseModel):
                 # update eachs
                 eachs["change"] = chan
                 # print("var:", chan)
-            else:
-                chan = eachs["change"]
-                # print("normal:", chan)
 
             if hsp_sbjct_start < pos and (hsp_sbjct_start + real_sbjct_length) > pos:
                 orf_protein_sequence = ""
@@ -130,5 +129,73 @@ class MutationsModule(BaseModel):
 
         return srv_result
 
-# def frameshift(self):
-#     pass
+    def frameshift(self, predicted_genes_dict_protein, submitted_proteins_dict, fsl, real_sbjct_length, hsp_query, hsp_sbjct_start, hsp_sbjct, orf_info, hit_id): 
+        """
+        Searches for frameshifts in sequences.
+        """
+    
+        fs_dict_list = []
+        fs_result = []
+
+        # print(predicted_genes_dict_protein)
+        # print(submitted_proteins_dict)
+
+        for each_fs in fsl:
+            if each_fs != None:
+                # print(each_fs)
+                # snp_dict_list.append({"original": each_snp[0], "change": each_snp[-1], "position": int(each_snp[1:-1])})
+                position = int(
+                    ''.join(filter(str.isdigit, each_fs)))
+
+                original = (each_fs.split(
+                    ''.join(filter(str.isdigit, each_fs))))
+                
+                fs_dict_list.append(
+                    {"original": original[0], "position": position})
+                
+                # print(fs_dict_list)
+
+        for eachfs in fs_dict_list:
+            # print(each_fs)
+            # print(eachfs)
+            # print(eachfs, "and", hit_id)
+            fs_output = {}
+
+            pos = eachfs["position"]
+            ori = eachfs["original"]
+            # chan = eachfs["change"]
+            # print("normal:", chan)
+
+            # print(hsp_sbjct_start, pos, (hsp_sbjct_start + real_sbjct_length))
+
+            if hsp_sbjct_start < pos and (hsp_sbjct_start + real_sbjct_length) > pos:
+                orf_protein_sequence = ""
+
+                # if predicted_genes_dict:
+                #     if orf_info.strip() in predicted_genes_dict.keys():
+                #         orf_protein_sequence = str(Seq(predicted_genes_dict[orf_info.decode()], generic_dna).translate(table=11)).strip("*")
+                #     else:
+                #         orf_protein_sequence = str(Seq(predicted_genes_dict[orf_info.decode()[:orf_info.decode().index(' # ')]], generic_dna).translate(table=11)).strip("*")
+
+                if predicted_genes_dict_protein:
+                    if orf_info.strip() in predicted_genes_dict_protein.keys():
+                        orf_protein_sequence = predicted_genes_dict_protein[orf_info.decode()].strip("*")
+                        fs_output["eachs"] = eachfs
+                        fs_output["orf_protein_sequence"] = orf_protein_sequence
+                        # fs_output["chan"] = chan
+                        # print(orf_protein_sequence)
+                    else:
+                        orf_protein_sequence = predicted_genes_dict_protein[orf_info.decode()[:orf_info.decode().index(' # ')]].strip("*")
+                        fs_output["eachs"] = eachfs
+                        fs_output["orf_protein_sequence"] = orf_protein_sequence
+                        # fs_output["chan"] = chan
+                        # print(orf_protein_sequence)
+                    
+                if submitted_proteins_dict:
+                    orf_protein_sequence = str(submitted_proteins_dict[orf_info.decode().split(" ")[0]])
+                    fs_output["eachs"] = eachfs
+                    fs_output["orf_protein_sequence"] = orf_protein_sequence
+                    # fs_output["chan"] = chan 
+                    print(orf_protein_sequence)
+
+        # return fs_result

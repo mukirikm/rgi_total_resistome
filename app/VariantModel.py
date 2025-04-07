@@ -98,12 +98,20 @@ class Variant(MutationsModule):
 
 						logger.info("mutation | model_type_id = " + str(align_title))
 						init = 0
-						evalue_snp = self.extract_nth_bar(align_title, 2)
 						snpl = []
+						fsl = []
 						temp = ""
-						evalue_snp_dec = evalue_snp
-						snpl = evalue_snp_dec.split(',')
 
+						evalue_snp = self.extract_nth_bar(align_title, 2)
+						# evalue_snp_dec = evalue_snp
+						snpl = evalue_snp.split(',')
+						
+						evalue_fs = self.extract_nth_bar(align_title, 3)
+						fsl = evalue_fs.split(',')
+						# print(align_title)
+						# print(fsl)
+						# print()
+						
 						for hsp in alignment.hsps:
 							query_seq =  hsp.query.replace('-', '')
 							real_query_length = len(query_seq)
@@ -122,7 +130,12 @@ class Variant(MutationsModule):
 								predicted_genes_dict_protein, submitted_proteins_dict, snpl, real_sbjct_length, hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info
 								)	
 							
+							fs_result = self.frameshift(
+								predicted_genes_dict_protein, submitted_proteins_dict, fsl, real_sbjct_length, hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info, hit_id
+							)
+							
 							# print(srv_result)
+							print(fs_result)
 							# for s in srv_result:
 							# 	print(s)
 								# if len(s) > 0:

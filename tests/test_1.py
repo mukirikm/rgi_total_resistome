@@ -86,7 +86,7 @@ def run_rgi(rgi, input_type, input_sequence, output_file):
         '--input_sequence', input_sequence,
         '--output_file', output_file,
         '--alignment_tool', alignment_tool,
-        '--clean',
+        # '--clean',
         '--include_loose',
         '--include_nudge',
         '--low_quality',
@@ -253,6 +253,28 @@ def test_rgi_variant_model(rgi):
 
     assert validate_results(
         output_file, 99.88, 'Escherichia coli gyrB conferring resistance to aminocoumarin', 'Strict') == True and check_mutation(output_file_tab, "Escherichia coli gyrB conferring resistance to aminocoumarin", "R136L") == True
+    
+def test_mutation_module_frameshift(rgi):
+    """
+    run intial test with the following to regenerate the databases (including framshifts):
+    find ../app/_db/ ! -name "*.py" -type f -exec rm -f {} + ; pytest test_1.py::test_mutation_module_frameshift -vs --color=auto
+
+    for all subsequent tests:
+    pytest test_1.py::test_mutation_module_frameshift -vs --color=auto
+    """
+
+    filename = "fs_test.fasta"
+    # filename = "rdxA_fs.fasta"
+    # filename = "variant.fasta"
+    output_file = os.path.join(
+        working_directory, outputs, "{}.json".format(filename))
+    output_file_tab = os.path.join(
+        working_directory, outputs, "{}.txt".format(filename))
+    run_rgi(rgi, 'protein', os.path.join(
+        working_directory, inputs, filename), output_file)
+
+    # assert validate_results(
+    #     output_file, 99.88, 'Escherichia coli gyrB conferring resistance to aminocoumarin', 'Strict') == True and check_mutation(output_file_tab, "Escherichia coli gyrB conferring resistance to aminocoumarin", "R136L") == True
 
 
 def test_rgi_overexpression_model(rgi):
