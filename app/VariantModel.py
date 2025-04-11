@@ -135,7 +135,14 @@ class Variant(MutationsModule):
 							)
 							
 							# print(srv_result)
-							print(fs_result)
+							# print(fs_result)
+							for k in fs_result:
+								print(k)
+								# for x,s in k.items():
+								# 	print(x,s)
+								# print("===========")
+								
+							# print("SNPS BELOW")
 							# for s in srv_result:
 							# 	print(s)
 								# if len(s) > 0:

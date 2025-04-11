@@ -115,7 +115,8 @@ class MutationsModule(BaseModel):
 
                     # get position of mutation in the query sequence
                     d = int(pos) - hsp_sbjct_start - self.find_num_dash(hsp_query, (int(pos) - hsp_sbjct_start))
-                    # print(d)
+                    # print(pos, hsp_sbjct_start, hsp_query)
+                    # print(d, pos, hsp_query[qry], qry)
                     query_snps = {"original": ori, "change": chan ,"position": d+1}
                     # print(query_snps)
                     # logger.debug("query_snp on frame {} {}".format(hsp.frame, json.dumps(query_snps, indent=2)))
@@ -141,6 +142,7 @@ class MutationsModule(BaseModel):
         # print(submitted_proteins_dict)
 
         for each_fs in fsl:
+            # print(fsl)
             if each_fs != None:
                 # print(each_fs)
                 # snp_dict_list.append({"original": each_snp[0], "change": each_snp[-1], "position": int(each_snp[1:-1])})
@@ -151,7 +153,7 @@ class MutationsModule(BaseModel):
                     ''.join(filter(str.isdigit, each_fs))))
                 
                 fs_dict_list.append(
-                    {"original": original[0], "position": position})
+                    {"original": original[0], "curated_position": position, "mutation_type": original[-1]})
                 
                 # print(fs_dict_list)
 
@@ -161,9 +163,9 @@ class MutationsModule(BaseModel):
             # print(eachfs, "and", hit_id)
             fs_output = {}
 
-            pos = eachfs["position"]
+            pos = eachfs["curated_position"]
             ori = eachfs["original"]
-            # chan = eachfs["change"]
+            mut = eachfs["mutation_type"]
             # print("normal:", chan)
 
             # print(hsp_sbjct_start, pos, (hsp_sbjct_start + real_sbjct_length))
@@ -171,31 +173,53 @@ class MutationsModule(BaseModel):
             if hsp_sbjct_start < pos and (hsp_sbjct_start + real_sbjct_length) > pos:
                 orf_protein_sequence = ""
 
-                # if predicted_genes_dict:
-                #     if orf_info.strip() in predicted_genes_dict.keys():
-                #         orf_protein_sequence = str(Seq(predicted_genes_dict[orf_info.decode()], generic_dna).translate(table=11)).strip("*")
-                #     else:
-                #         orf_protein_sequence = str(Seq(predicted_genes_dict[orf_info.decode()[:orf_info.decode().index(' # ')]], generic_dna).translate(table=11)).strip("*")
-
                 if predicted_genes_dict_protein:
                     if orf_info.strip() in predicted_genes_dict_protein.keys():
                         orf_protein_sequence = predicted_genes_dict_protein[orf_info.decode()].strip("*")
-                        fs_output["eachs"] = eachfs
+                        fs_output["eachfs"] = eachfs
                         fs_output["orf_protein_sequence"] = orf_protein_sequence
-                        # fs_output["chan"] = chan
+                        fs_output["mutation_type"] = mut
                         # print(orf_protein_sequence)
                     else:
                         orf_protein_sequence = predicted_genes_dict_protein[orf_info.decode()[:orf_info.decode().index(' # ')]].strip("*")
-                        fs_output["eachs"] = eachfs
+                        fs_output["eachfs"] = eachfs
                         fs_output["orf_protein_sequence"] = orf_protein_sequence
-                        # fs_output["chan"] = chan
+                        fs_output["mutation_type"] = mut
                         # print(orf_protein_sequence)
                     
                 if submitted_proteins_dict:
                     orf_protein_sequence = str(submitted_proteins_dict[orf_info.decode().split(" ")[0]])
-                    fs_output["eachs"] = eachfs
+                    fs_output["eachfs"] = eachfs
                     fs_output["orf_protein_sequence"] = orf_protein_sequence
-                    # fs_output["chan"] = chan 
-                    print(orf_protein_sequence)
+                    fs_output["mutation_type"] = mut 
+                    # print(orf_protein_sequence)
 
-        # return fs_result
+                # Report ONLY if the SNPs are present
+                qry = int(pos) - hsp_sbjct_start + self.find_num_dash(hsp_sbjct, (int(pos) - hsp_sbjct_start))
+                # print(qry, self.find_num_dash(hsp_sbjct, (int(pos) - hsp_sbjct_start)))
+                # print(hsp_query[qry])
+                fs_output["qry"] = qry
+
+                sbj = int(pos) - hsp_sbjct_start + self.find_num_dash(hsp_sbjct, (int(pos) - hsp_sbjct_start))
+                # print(hsp_query[qry], "+", chan, ":", qry, ">", sbj)
+            
+                if hsp_query[qry] != ori:
+                    # print(hsp_query[qry], ori)
+                #     print(eachfs)
+                    query_fs = {}
+                    # logger.debug("mutation | Model:"+str(model_id) + " | pos:" +str(pos) +" | change: "+str(hsp.query[pos - hsp.sbjct_start + \
+                    # 		self.find_num_dash(hsp.sbjct, (pos-hsp.sbjct_start))]) + "=" + str(chan) + " AND wildtype: " + str(hsp.sbjct[pos - hsp.sbjct_start \
+                    # 		+self.find_num_dash(hsp.sbjct, (pos-hsp.sbjct_start))]) + "=" + str(ori))
+
+                    # get position of mutation in the query sequence
+                    d = int(pos) - hsp_sbjct_start - self.find_num_dash(hsp_query, (int(pos) - hsp_sbjct_start))
+                    # print(d)
+                    query_fs = {"original": ori, "change": hsp_query[qry] ,"fs_position": d+1}
+                    # print(query_snps)
+                    # logger.debug("query_snp on frame {} {}".format(hsp.frame, json.dumps(query_snps, indent=2)))
+
+                    fs_output["query_fs"] = query_fs
+
+            fs_result.append(fs_output)
+
+        return fs_result

@@ -102,7 +102,7 @@ class Database(object):
 							"""
 							FOR TESTING - KARYN
 							"""
-							print(j[i]['model_name'])
+							# print(j[i]['model_name'])
 
 							try:
 								pass_bit_score = j[i]['model_param']['blastp_bit_score']['param_value']
@@ -116,7 +116,7 @@ class Database(object):
 								"""
 								FOR TESTING - KARYN
 								"""
-								print("snps found:", snpList)
+								# print("snps found:", snpList)
 							except Exception as e:
 								logger.warning("No snp for model (%s, %s). RGI will omit this model and keep running." \
 									% (j[i]['model_id'], j[i]['model_name']))
@@ -127,7 +127,7 @@ class Database(object):
 								"""
 								FOR TESTING - KARYN
 								"""
-								print("frameshifts found:", fsList)
+								# print("frameshifts found:", fsList)
 							except Exception as e:
 								pass
 								# logger.warning("No frameshift for model (%s, %s). RGI will omit this model and keep running." \
@@ -143,7 +143,7 @@ class Database(object):
 									"""
 									FOR TESTING - KARYN
 									"""
-									print("original:", variant_db)
+									# print("original:", variant_db)
 
 									if "snp" in j[i]["model_param"]:
 										snp_out = "SNP: %s" % (','.join(snpList))
@@ -151,7 +151,7 @@ class Database(object):
 										"""
 										FOR TESTING - KARYN
 										"""
-										print("snp:", variant_db)
+										# print("snp:", variant_db)
 									
 									if "40494" in j[i]["model_param"]:
 										fs_out = "Frameshift: %s" % (','.join(fsList))
@@ -159,7 +159,7 @@ class Database(object):
 										"""
 										FOR TESTING - KARYN
 										"""
-										print("fs:", variant_db)
+										# print("fs:", variant_db)
 
 									# writing everything to fasta
 									fout.write(variant_db)
