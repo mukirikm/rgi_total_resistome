@@ -24,6 +24,7 @@ class Database(object):
 		self.make_blast_database()
 		self.make_diamond_database()
 		self.write_fasta_from_json_rna()
+		self.write_fasta_from_json_dna()
 
 	def create_blast_config(self):
 		"""
@@ -194,6 +195,140 @@ class Database(object):
 									logger.warning("No model sequences for model (%s, %s). RGI will omit this model and keep running." \
 										% (j[i]['model_id'], j[i]['model_name']))
 									logger.info("Please let the CARD Admins know! Email: card@mcmaster.ca")
+
+	def write_fasta_from_json_dna(self):
+		"""Creates a fasta file from card.json file."""
+		if os.path.isfile(os.path.join(self.db, "dnadb.fsa")):
+			logger.info("Database already exists.")
+			return
+		else:
+			try:
+				with open(os.path.join(self.data, "card.json"), 'r') as jfile:
+					j = json.load(jfile)
+			except Exception as e:
+				logger.error(e)
+				exit()
+
+			with open(os.path.join(self.db, "dnadb.fsa"), 'w') as fout:
+				for i in j:
+					if i.isdigit():
+		            	# model_type: protein homolog model
+						if j[i]['model_type_id'] == '40292':
+							try:
+								pass_bit_score = j[i]['model_param']['blastp_bit_score']['param_value']
+							except KeyError:
+								logger.warning("No bitscore for model (%s, %s). RGI will omit this model and keep running." \
+									% (j[i]['model_id'], j[i]['model_name']))
+								logger.info("Please let the CARD Admins know! Email: card@mcmaster.ca")
+							else:
+								try:
+									for seq in j[i]['model_sequences']['sequence']:
+										fout.write('>%s_%s | model_type_id: 40292 | pass_bitscore: %s | %s\n' % (i, seq, pass_bit_score, j[i]['ARO_name']))
+										fout.write('%s\n' %(j[i]['model_sequences']['sequence'][seq]['dna_sequence']['sequence']))
+								except Exception as e:
+									logger.warning("No model sequences for model (%s, %s). RGI will omit this model and keep running." \
+										% (j[i]['model_id'], j[i]['model_name']))
+									logger.info("Please let the CARD Admins know! Email: card@mcmaster.ca")
+
+
+		            	# model_type: protein variant model
+						elif j[i]["model_type_id"] == "40293":
+							"""
+							FOR TESTING - KARYN
+							"""
+							# print(j[i]['model_name'])
+
+							try:
+								pass_bit_score = j[i]['model_param']['blastp_bit_score']['param_value']
+							except KeyError:
+								logger.warning("No bitscore for model (%s, %s). RGI will omit this model and keep running." \
+									% (j[i]['model_id'], j[i]['model_name']))
+								logger.info("Please let the CARD Admins know! Email: card@mcmaster.ca")
+
+							try:
+								snpList = [j[i]['model_param']['snp']['param_value'][k] for k in j[i]['model_param']['snp']['param_value']]
+								"""
+								FOR TESTING - KARYN
+								"""
+								# print("snps found:", snpList)
+							except Exception as e:
+								logger.warning("No snp for model (%s, %s). RGI will omit this model and keep running." \
+									% (j[i]['model_id'], j[i]['model_name']))
+								logger.info("Please let the CARD Admins know! Email: card@mcmaster.ca")
+
+							try:
+								fsList = [j[i]['model_param']['40494']['param_value'][k] for k in j[i]['model_param']['40494']['param_value']]
+								"""
+								FOR TESTING - KARYN
+								"""
+								# print("frameshifts found:", fsList)
+							except Exception as e:
+								pass
+								# logger.warning("No frameshift for model (%s, %s). RGI will omit this model and keep running." \
+								# 	% (j[i]['model_id'], j[i]['model_name']))
+								# logger.info("Please let the CARD Admins know! Email: card@mcmaster.ca")
+
+							try:
+								variant_db = ""
+
+								for seq in j[i]['model_sequences']['sequence']:
+									variant_db = ('>%s_%s | model_type_id: 40293 | pass_bit_score: %s | SNP: None | Frameshift: None | %s\n' \
+									% (i, seq, pass_bit_score, j[i]['ARO_name']))
+									"""
+									FOR TESTING - KARYN
+									"""
+									# print("original:", variant_db)
+
+									if "snp" in j[i]["model_param"]:
+										snp_out = "SNP: %s" % (','.join(snpList))
+										variant_db = variant_db.replace("SNP: None", snp_out)
+										"""
+										FOR TESTING - KARYN
+										"""
+										# print("snp:", variant_db)
+									
+									if "40494" in j[i]["model_param"]:
+										fs_out = "Frameshift: %s" % (','.join(fsList))
+										variant_db = variant_db.replace("Frameshift: None", fs_out)
+										"""
+										FOR TESTING - KARYN
+										"""
+										# print("fs:", variant_db)
+
+									# writing everything to fasta
+									fout.write(variant_db)
+									fout.write('%s\n' % (j[i]['model_sequences']['sequence'][seq]['dna_sequence']['sequence']))
+							except Exception as e:
+								logger.warning("No model sequences for model (%s, %s). RGI will omit this model and keep running." \
+									% (j[i]['model_id'], j[i]['model_name']))
+								logger.info("Please let the CARD Admins know! Email: card@mcmaster.ca")
+
+		            	# model_type: protein overexpression model
+						elif j[i]["model_type_id"] == "41091":
+							try:
+								pass_bit_score = j[i]["model_param"]["blastp_bit_score"]["param_value"]
+							except KeyError:
+								logger.warning("No bitscore for model (%s, %s). RGI will omit this model and keep running." \
+									% (j[i]['model_id'], j[i]['model_name']))
+								logger.info("Please let the CARD Admins know! Email: card@mcmaster.ca")
+							else:
+								try:
+									snpList = [j[i]['model_param']['snp']['param_value'][k] for k in j[i]['model_param']['snp']['param_value']]
+								except Exception as e:
+									logger.warning("No snp for model (%s, %s). RGI will omit this model and keep running." \
+										% (j[i]['model_id'], j[i]['model_name']))
+									logger.info("Please let the CARD Admins know! Email: card@mcmaster.ca")
+
+								try:
+									for seq in j[i]['model_sequences']['sequence']:
+										fout.write('>%s_%s | model_type_id: 41091 | pass_bit_score: %s | SNP: %s | %s\n' \
+											% (i, seq, pass_bit_score, ','.join(snpList), j[i]['ARO_name']))
+										fout.write('%s\n' % (j[i]['model_sequences']['sequence'][seq]['dna_sequence']['sequence']))
+								except Exception as e:
+									logger.warning("No model sequences for model (%s, %s). RGI will omit this model and keep running." \
+										% (j[i]['model_id'], j[i]['model_name']))
+									logger.info("Please let the CARD Admins know! Email: card@mcmaster.ca")
+
 
 
 	def write_fasta_from_json_rna(self):

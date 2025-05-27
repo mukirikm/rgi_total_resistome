@@ -244,6 +244,7 @@ def test_rgi_mtb_with_mutation_S315Var_model(rgi):
 def test_rgi_variant_model(rgi):
 
     filename = "variant.fasta"
+    # filename = "Rv2535c_L44P.fasta"
     output_file = os.path.join(
         working_directory, outputs, "{}.json".format(filename))
     output_file_tab = os.path.join(
@@ -263,14 +264,12 @@ def test_mutation_module_frameshift(rgi):
     pytest test_1.py::test_mutation_module_frameshift -vs --color=auto
     """
 
-    filename = "fs_test.fasta"
-    # filename = "rdxA_fs.fasta"
-    # filename = "variant.fasta"
+    filename = "Rv2535c_A15fs_GCT_Tdel.fasta"
     output_file = os.path.join(
         working_directory, outputs, "{}.json".format(filename))
     output_file_tab = os.path.join(
         working_directory, outputs, "{}.txt".format(filename))
-    run_rgi(rgi, 'protein', os.path.join(
+    run_rgi(rgi, 'contig', os.path.join(
         working_directory, inputs, filename), output_file)
 
     # assert validate_results(
@@ -311,7 +310,7 @@ def test_rgi_effluxpump_model(rgi):
 # TODO:: update test
 
 
-def _test_rgi_rrna_model(rgi):
+def test_rgi_rrna_model(rgi):
 
     filename = "rrna.fasta"
     output_file = os.path.join(
