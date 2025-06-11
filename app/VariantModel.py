@@ -1,15 +1,17 @@
 from app.Mutations import MutationsModule
+from app.Blast import Blast
 from app.settings import *
 from Bio.Blast import NCBIXML
 
 
 class Variant(MutationsModule):
 	"""Class for protein variant searches."""
-	def __init__(self, input_type, loose, input_sequence, xml_file, working_directory, local_database=False, include_nudge=False):
+	def __init__(self, input_type, loose, input_sequence, xml_file, dna_xml_file, working_directory, local_database=False, include_nudge=False):
 		self.input_type = input_type
 		self.loose = loose
 		self.input_sequence = input_sequence
 		self.xml_file = xml_file
+		self.dna_xml_file = dna_xml_file
 		self.output = {}
 		self.working_directory = working_directory
 
@@ -38,17 +40,38 @@ class Variant(MutationsModule):
 				self.input_sequence, self.input_type)
 			predicted_genes_dict_protein = self.get_orf_protein_sequence(
 				self.input_sequence, self.input_type)
+			
+		# print("predicted proteins") # translated from the predicted GENES
+		# print(predicted_genes_dict_protein)
+		# print("=========================")
+		# print("predicted genes")
+		# print(predicted_genes_dict)
+		# print("=========================")
 
 		if self.input_type == "protein":
 			submitted_proteins_dict = (
 				self.get_submitted_protein_sequence(self.input_sequence))
-
+		
+		# print("submitted proteins (no predictions needed, just BLAST/DIAMOND)")
 		# print(submitted_proteins_dict)
+		# print("=========================")
 
 		with open(os.path.join(self.data,"card.json")) as json_file:
 			json_data = json.load(json_file)
 		# with open(os.path.join(self.data,"card.json")) as json_file:
 		# 	json_data = json.load(json_file)
+
+		# if self.dna_xml_file:
+		# 	print("XML FILE EXISTS")
+		# else:
+		# 	print("NO XML FILE, KAWYN")
+
+		# with open(self.dna_xml_file, 'r') as dna_result_handle:
+		# 	dna_blast_records = NCBIXML.parse(dna_result_handle)
+		# 	for dna_blast_record in dna_blast_records:
+		# 		for dna_alignment in dna_blast_record.alignments:
+		# 			dna_align_title = dna_alignment.title
+		# 			print(dna_align_title)
 
 		with open(self.xml_file, 'r') as result_handle:
 			blast_records = NCBIXML.parse(result_handle)
@@ -58,11 +81,7 @@ class Variant(MutationsModule):
 				loose = {}
 				for alignment in blast_record.alignments:
 					align_title = alignment.title
-
-					# print(align_title)
-
 					orf_info = blast_record.query.encode('ascii','replace')
-
 					c = 0
 					barc = 0
 					for eachc in orf_info:
@@ -76,6 +95,7 @@ class Variant(MutationsModule):
 					orf_from = orf_info[c:]
 
 					model_type_id = self.extract_nth_bar(align_title, 0)
+					# print(model_type_id)
 					# logger.info("model_type_id: {} ".format(model_type_id))
 					space_pos = align_title.index(' ')
 					hit_id = align_title[0:space_pos]
@@ -117,8 +137,11 @@ class Variant(MutationsModule):
 							real_query_length = len(query_seq)
 							sbjct_seq = hsp.sbjct.replace('-', '')
 							real_sbjct_length = len(sbjct_seq)
-							# print(hsp)
 
+							midline = hsp.match
+							# print(midline)
+
+							card_prot_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["protein_sequence"]["sequence"]
 							# print(orf_info,"\n",hsp)
 
 							# print(self.extract_nth_bar(orf_info.decode(), 0))
@@ -126,18 +149,31 @@ class Variant(MutationsModule):
 							# print(self.extract_nth_bar(orf_info.decode(), 2))
 							# print(orf_from.decode())
 
+							"""
+							SNP CODE
+							"""
 							srv_result = self.single_resistance_variant(
 								predicted_genes_dict_protein, submitted_proteins_dict, snpl, real_sbjct_length, hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info
-								)	
+								)
 							
-							fs_result = self.frameshift(
-								predicted_genes_dict_protein, submitted_proteins_dict, fsl, real_sbjct_length, hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info, hit_id
-							)
+							""""
+							FRAMESHIFT CODE
+							"""
+
+							if "Frameshift" in align_title:	
+								# print(align_title)
+								# blast_obj = Blast("", program='blastn', output_file="test_fs", 
+						  		# 				  local_database=self.local_database, num_threads=8)
+								# blast_obj.run_custom(db)
+								# print(blast_obj)
+								fs_result = self.frameshift(
+									predicted_genes_dict_protein, submitted_proteins_dict, fsl, real_sbjct_length, hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info, hit_id, midline, card_prot_ref, predicted_genes_dict
+								)
 							
 							# print(srv_result)
 							# print(fs_result)
-							for k in fs_result:
-								print(k)
+							# for k in fs_result:
+							# 	print(k)
 								# for x,s in k.items():
 								# 	print(x,s)
 								# print("===========")

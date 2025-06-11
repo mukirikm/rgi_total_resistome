@@ -20,11 +20,12 @@ class Database(object):
 	def build_databases(self):
 		"""Build BLAST and DIAMOND databases."""
 		self.write_fasta_from_json()
+		self.write_fasta_from_json_dna()
 		self.create_blast_config()
 		self.make_blast_database()
+		self.make_nucl_blast_database()
 		self.make_diamond_database()
 		self.write_fasta_from_json_rna()
-		self.write_fasta_from_json_dna()
 
 	def create_blast_config(self):
 		"""
@@ -40,11 +41,22 @@ class Database(object):
 		if os.path.isfile(os.path.join(self.db,"proteindb.fsa")) == True and os.path.exists(os.path.join(self.db,"proteindb.fsa")) == True  \
 		   and os.path.exists(os.path.join(self.db,"protein.db.phr")) == True and os.path.exists(os.path.join(self.db,"protein.db.pin")) == True \
 		   and os.path.exists(os.path.join(self.db,"protein.db.psq")) == True:
-		   logger.info("blast DB exists")
+		   logger.info("protein blast DB exists")
 		   pass
 		else:
-			logger.info("create blast DB.")
+			logger.info("create protein blast DB.")
 			os.system('makeblastdb -in {} -dbtype prot -out {} {stdout}'.format(os.path.join(self.db,"proteindb.fsa"),os.path.join(self.db,"protein.db"),stdout=self.stdout))
+
+	def make_nucl_blast_database(self):
+		"""Build nucleotide BLAST database from a FASTA file."""
+		if os.path.isfile(os.path.join(self.db,"dnadb.fsa")) == True and os.path.exists(os.path.join(self.db,"dnadb.fsa")) == True  \
+			and os.path.exists(os.path.join(self.db,"dna.db.nhr")) == True and os.path.exists(os.path.join(self.db,"dna.db.nin")) == True \
+			and os.path.exists(os.path.join(self.db,"dna.db.nsq")) == True:
+			logger.info("nucleotide blast DB exists")
+			pass
+		else:
+			logger.info("create nucleotide blast DB.")
+			os.system('makeblastdb -in {} -dbtype nucl -out {} {stdout}'.format(os.path.join(self.db,"dnadb.fsa"),os.path.join(self.db,"dna.db"),stdout=self.stdout))
 
 	def make_diamond_database(self):
 		"""Build DIAMOND database from a FASTA file."""
@@ -66,7 +78,7 @@ class Database(object):
 	def write_fasta_from_json(self):
 		"""Creates a fasta file from card.json file."""
 		if os.path.isfile(os.path.join(self.db, "proteindb.fsa")):
-			logger.info("Database already exists.")
+			logger.info("Protein database already exists.")
 			return
 		else:
 			try:
@@ -199,7 +211,7 @@ class Database(object):
 	def write_fasta_from_json_dna(self):
 		"""Creates a fasta file from card.json file."""
 		if os.path.isfile(os.path.join(self.db, "dnadb.fsa")):
-			logger.info("Database already exists.")
+			logger.info("DNA database already exists.")
 			return
 		else:
 			try:

@@ -18,9 +18,10 @@ class Filter(BaseModel):
 
     """This class takes in blast xml file and card.json file and producess perfect strict paradigm for RGI """
 
-    def __init__(self, input_type, loose, input_sequence, xml_file, card_json, input_file, output_file, num_threads, rgi_obj=None):
+    def __init__(self, input_type, loose, input_sequence, xml_file, dna_xml_file, card_json, input_file, output_file, num_threads, rgi_obj=None):
         self.input_type = input_type
         self.xml_file = xml_file
+        self.dna_xml_file = dna_xml_file
         self.card_json = card_json
         self.input_filename = input_file
         self.input_sequence = input_sequence
@@ -54,7 +55,7 @@ class Filter(BaseModel):
         # results = {}
         try:    
                 if model_type == "variant":
-                    obj = Variant(self.input_type, self.loose, self.input_sequence, self.xml_file,
+                    obj = Variant(self.input_type, self.loose, self.input_sequence, self.xml_file, self.dna_xml_file,
                                 self.working_directory, self.rgi_obj.local_database, self.rgi_obj.include_nudge)
                     results = obj.run()
                     # print(results)
@@ -91,7 +92,6 @@ class Filter(BaseModel):
         p3 = multiprocessing.Process(
             target=self.worker, args=("overexpression",))
         p4 = multiprocessing.Process(target=self.process_rrna, args=("rrna",))
-        p5 = multiprocessing.Process(target=self.process_dna, args=("variant",))
         # logger.debug("{} -> {}".format(p.pid, p.name))
         # logger.debug("{} -> {}".format(p2.pid, p2.name))
         # logger.debug("{} -> {}".format(p3.pid, p3.name))
@@ -100,7 +100,6 @@ class Filter(BaseModel):
         p2.start()
         p3.start()
         p4.start()
-        p5.start()
 
     def prepare_output(self):
         """
@@ -184,6 +183,7 @@ class Filter(BaseModel):
 
         logger.info("DB from user query")
         db_obj = Database(self.rgi_obj.local_database)
+        # print(db_obj)
 
         # print(self.rgi_obj)
         # print(self.rgi_obj.local_database)
@@ -191,6 +191,7 @@ class Filter(BaseModel):
         db_obj.make_custom_db(in_file, out_file)
         # print("\n", db_obj)
         self.blast_reference_to_db_query(out_file, xml_file)
+        # print(out_file)
         return out_file, xml_file
 
     def blast_reference_to_db_query(self, db, xml_file):
@@ -200,63 +201,10 @@ class Filter(BaseModel):
         logger.info("blast_reference_to_db_query")
         # blast all rrna db against query db
         rrna_db_fasta = os.path.join(self.rgi_obj.db, "rnadb.fsa")
-        blast_obj = Blast(rrna_db_fasta, program='blastn', output_file=xml_file,
-                          local_database=self.rgi_obj.local_database, num_threads=self.num_threads)
+        blast_obj = Blast(rrna_db_fasta, path=None, program='blastn', output_file=xml_file, num_threads=self.num_threads)
+        # print("\n", blast_obj, "\n")
         # print(blast_obj)
         blast_obj.run_custom(db)
-
-    """
-    KARYN --- YOUR FRAMESHIFT STUFF
-    """
-
-    def process_dna(self, mode="frameshift"):
-        logger.info("DNA process: {}".format(self.input_type))
-        if self.input_type == "protein":
-            logger.info("Skip DNA...")
-        else:
-            try:
-                logger.info("DNA process")
-                self.format_fasta()
-                self.file_name = os.path.basename(self.input_sequence)
-                d, x = self.create_dnadb_query()
-
-                # print("\n", self.file_name)
-                # print("\nD:", d, "\nX:", x, "\n")
-
-            except Exception as e:
-                print(traceback.format_exc())
-
-    def create_dnadb_query(self):
-        logger.info("create_dnadb_query")
-        # make_custom_db(self, in_file, out_file, db_type="diamond")
-        in_file = self.input_sequence
-
-        f_path, f_name = os.path.split(self.input_sequence)
-        dna_out_file = os.path.join(self.working_directory, "{}.dnadb".format(f_name))
-        dna_xml_file = os.path.join(self.working_directory,
-                                "{}.blastRes.dna.xml".format(f_name))
-        
-        logger.info("DB from user query")
-
-        db_obj = Database(self.rgi_obj.local_database)
-        db_obj.make_custom_db(in_file, dna_out_file)
-        self.blast_reference_to_dnadb_query(dna_out_file, dna_xml_file)
-
-        # print(in_file, dna_out_file)
-        
-        return dna_out_file, dna_xml_file
-
-    def blast_reference_to_dnadb_query(self, db, dna_xml_file):
-        if self.input_type != "protein":
-            logger.info("> using BLASTN to create DNA xml for frameshift finding <")
-            # blast all DNA db against query db
-            dna_db_fasta = os.path.join(self.rgi_obj.db, "dnadb.fsa")
-            blast_obj_dna = Blast(dna_db_fasta, program='blastn', output_file=dna_xml_file,
-                            local_database=self.rgi_obj.local_database, num_threads=self.num_threads)
-            # print(blast_obj_dna)
-            blast_obj_dna.run_custom(db)
-        else:
-            pass
 
     def format_fasta(self):
         f_path, f_name = os.path.split(self.input_sequence)

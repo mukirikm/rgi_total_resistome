@@ -45,6 +45,7 @@ class RGI(RGIBase):
 
 		self.working_directory = o_f_path
 		self.blast_results_xml_file = ''
+		self.blastn_results_xml_file = ''
 		self.debug = debug
 		self.split_prodigal_jobs = split_prodigal_jobs
 		self.include_nudge = include_nudge
@@ -292,7 +293,7 @@ class RGI(RGIBase):
 		"""Removes file."""
 		if os.path.exists(f):
 			try:
-				# keep CDS protein and dna from prodigal if user specified --clean anf --keep flags
+				# keep CDS protein and dna from prodigal if user specified --clean and --keep flags
 				if self.keep == True and (f.find("temp.contig.fsa") != -1 \
 					or f.find("temp.contigToORF.fsa") != -1) and \
 				os.path.splitext(os.path.basename(f))[1][1:].strip() in ["fsa"]:
@@ -316,14 +317,21 @@ class RGI(RGIBase):
 			self.process_protein()
 		elif  self.input_type == "contig":
 			self.process_contig()
+			self.process_contig_for_frameshift()
 		else:
 			logger.error("Invalid input_type: {} ".format(self.input_type))
 			exit()
 
 	def set_xml_filepath(self,fp):
 		"""Sets blast xml filepath."""
-		logger.info("set blast xml file: [{}]".format(fp))
+		logger.info("set blastp xml file: [{}]".format(fp))
 		self.blast_results_xml_file = fp
+
+	def set_dna_xml_filepath(self,fp):
+		"""Sets blastn xml filepath."""
+		logger.info("set blastn xml file: [{}]".format(fp))
+		self.blastn_results_xml_file = fp
+		# print("\nBLASTN BLAST XML FILE PATH:", self.blastn_results_xml_file, "\n")
 
 	def process_protein(self):
 		"""Process protein sequence(s)."""
@@ -334,7 +342,7 @@ class RGI(RGIBase):
 			diamond_obj = Diamond(self.input_sequence, xml_file, local_database=self.local_database, num_threads=self.threads)
 			diamond_obj.run()
 		else:
-			blast_obj = Blast(self.input_sequence, xml_file, local_database=self.local_database, num_threads=self.threads)
+			blast_obj = Blast(self.input_sequence, xml_file, path=os.path.join(self.db,"protein.db"), local_database=self.local_database, num_threads=self.threads)
 			blast_obj.run()
 
 		self.set_xml_filepath(xml_file)
@@ -360,8 +368,9 @@ class RGI(RGIBase):
 					diamond_obj = Diamond(contig_fsa_file, local_database=self.local_database, num_threads=self.threads)
 					diamond_obj.run()
 				else:
-					blast_obj = Blast(contig_fsa_file, local_database=self.local_database, num_threads=self.threads)
+					blast_obj = Blast(contig_fsa_file, path=os.path.join(self.db,"protein.db"), local_database=self.local_database, num_threads=self.threads)
 					blast_obj.run()
+					# print("\nNORMAL BLAST OBJECT:", blast_obj, "\n")
 				self.set_xml_filepath(blast_results_xml_file)
 			else:
 				self.write_stub_output_file()
@@ -373,6 +382,22 @@ class RGI(RGIBase):
 			# logger.info("success procession orf file")
 			pass
 
+	def process_contig_for_frameshift(self):
+		"""
+		Runs BLASTN using input sequence(s) as the query and CARD nucleotide references as the subjects.
+		This is different from the rRNA BLASTN.
+		"""
+		file_name = os.path.basename(self.input_sequence)
+		blastn_results_xml_file = os.path.join(self.working_directory,"{}.temp.contig.fsa.blastRes.dna.xml".format(file_name))
+
+		if self.orf_finder:
+			blast_obj = Blast(self.input_sequence, output_file=blastn_results_xml_file, program="blastn", path=os.path.join(self.db,"dna.db"), local_database=self.local_database, num_threads=self.threads)
+			# print("\nFS BLAST OBJECT:", blast_obj, "\n")
+			blast_obj.run()
+
+		self.set_dna_xml_filepath(blastn_results_xml_file)
+		# print("\nBLASTN BLAST XML FILE PATH:", self.set_dna_xml_filepath(blastn_results_xml_file), "\n")
+
 	def write_stub_output_file(self):
 		# write empty output file if there are no open reading frames
 		with open(os.path.join(self.output_file), 'w') as fout:
@@ -382,7 +407,7 @@ class RGI(RGIBase):
 	def filter_process(self):
 		logger.info("run filter")
 		"""Filter each detection models and predict resistome(s)."""
-		filter_obj = Filter(self.input_type,  self.loose, self.input_sequence, self.blast_results_xml_file, \
+		filter_obj = Filter(self.input_type,  self.loose, self.input_sequence, self.blast_results_xml_file, self.blastn_results_xml_file, \
 			os.path.join(self.dp,"card.json"),os.path.basename(self.input_sequence) ,self.output_file,self.threads, self)
 		filter_obj.run()
 
