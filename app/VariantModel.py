@@ -1,8 +1,6 @@
 from app.Mutations import MutationsModule
-from app.Blast import Blast
 from app.settings import *
 from Bio.Blast import NCBIXML
-
 
 class Variant(MutationsModule):
 	"""Class for protein variant searches."""
@@ -58,20 +56,64 @@ class Variant(MutationsModule):
 
 		with open(os.path.join(self.data,"card.json")) as json_file:
 			json_data = json.load(json_file)
-		# with open(os.path.join(self.data,"card.json")) as json_file:
-		# 	json_data = json.load(json_file)
 
-		# if self.dna_xml_file:
-		# 	print("XML FILE EXISTS")
-		# else:
-		# 	print("NO XML FILE, KAWYN")
+		with open(self.dna_xml_file, 'r') as blastn_result_handle:
+			blastn_records = NCBIXML.parse(blastn_result_handle)	
+			for blastn_record in blastn_records:
+				for alignment in blastn_record.alignments:
+					align_title = alignment.title
 
-		# with open(self.dna_xml_file, 'r') as dna_result_handle:
-		# 	dna_blast_records = NCBIXML.parse(dna_result_handle)
-		# 	for dna_blast_record in dna_blast_records:
-		# 		for dna_alignment in dna_blast_record.alignments:
-		# 			dna_align_title = dna_alignment.title
-		# 			print(dna_align_title)
+					model_type_id = self.extract_nth_bar(align_title, 0)
+					# logger.info("model_type_id: {} ".format(model_type_id))
+					space_pos = align_title.index(' ')
+					hit_id = align_title[0:space_pos]
+					hit_id = hit_id.encode('ascii','replace')
+					# print("debug 2:", hit_id)
+
+					model_descrpt = align_title[align_title.index(' ')+1:]
+					underscore_in_MD = model_descrpt.index('_')
+					model_id = model_descrpt[0:underscore_in_MD]
+					seq_in_model = model_descrpt[underscore_in_MD+1: model_descrpt.index(' ')]
+					pass_value = self.extract_nth_bar(alignment.title, 1)
+					# logger.info("pass_value: {}".format(pass_value))
+
+					if model_type_id == 40293:
+						try:
+							true_pass_evalue = float(pass_value)
+						except ValueError:
+							true_pass_evalue = float(
+								pass_value[0:pass_value.find(' ')])
+
+						logger.info("mutation | model_type_id = " + str(align_title))
+						init = 0
+						fsl = []
+						temp = ""
+						
+						evalue_fs = self.extract_nth_bar(align_title, 2)
+						fsl = evalue_fs.split(',')
+						# print("\nblastn align title:", align_title)
+						# print(fsl)
+						# print()
+						
+						for hsp in alignment.hsps:
+							query_seq =  hsp.query.replace('-', '')
+							real_query_length = len(query_seq)
+							sbjct_seq = hsp.sbjct.replace('-', '')
+							real_sbjct_length = len(sbjct_seq)
+
+							midline = hsp.match
+
+							card_prot_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["protein_sequence"]["sequence"]
+							# print(hsp)
+
+							# print(self.extract_nth_bar(orf_info.decode(), 0))
+							# print(self.extract_nth_bar(orf_info.decode(), 1))
+							# print(self.extract_nth_bar(orf_info.decode(), 2))
+							# print(orf_from.decode())
+
+							if "Frameshift" in align_title:	
+								for value in self.frameshift(fsl, real_sbjct_length, hsp.query, hsp.sbjct_start, hsp.sbjct, hit_id, midline, card_prot_ref):
+									print(value)
 
 		with open(self.xml_file, 'r') as result_handle:
 			blast_records = NCBIXML.parse(result_handle)
@@ -119,29 +161,22 @@ class Variant(MutationsModule):
 						logger.info("mutation | model_type_id = " + str(align_title))
 						init = 0
 						snpl = []
-						fsl = []
 						temp = ""
 
 						evalue_snp = self.extract_nth_bar(align_title, 2)
 						# evalue_snp_dec = evalue_snp
 						snpl = evalue_snp.split(',')
 						
-						evalue_fs = self.extract_nth_bar(align_title, 3)
-						fsl = evalue_fs.split(',')
-						# print(align_title)
-						# print(fsl)
+						# print("\nblastp align title:", align_title)
+						# print(snpl)
 						# print()
-						
+
 						for hsp in alignment.hsps:
 							query_seq =  hsp.query.replace('-', '')
 							real_query_length = len(query_seq)
 							sbjct_seq = hsp.sbjct.replace('-', '')
 							real_sbjct_length = len(sbjct_seq)
 
-							midline = hsp.match
-							# print(midline)
-
-							card_prot_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["protein_sequence"]["sequence"]
 							# print(orf_info,"\n",hsp)
 
 							# print(self.extract_nth_bar(orf_info.decode(), 0))
@@ -149,25 +184,8 @@ class Variant(MutationsModule):
 							# print(self.extract_nth_bar(orf_info.decode(), 2))
 							# print(orf_from.decode())
 
-							"""
-							SNP CODE
-							"""
 							srv_result = self.single_resistance_variant(
 								predicted_genes_dict_protein, submitted_proteins_dict, snpl, real_sbjct_length, hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info
-								)
-							
-							""""
-							FRAMESHIFT CODE
-							"""
-
-							if "Frameshift" in align_title:	
-								# print(align_title)
-								# blast_obj = Blast("", program='blastn', output_file="test_fs", 
-						  		# 				  local_database=self.local_database, num_threads=8)
-								# blast_obj.run_custom(db)
-								# print(blast_obj)
-								fs_result = self.frameshift(
-									predicted_genes_dict_protein, submitted_proteins_dict, fsl, real_sbjct_length, hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info, hit_id, midline, card_prot_ref, predicted_genes_dict
 								)
 							
 							# print(srv_result)

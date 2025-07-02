@@ -265,6 +265,8 @@ def test_mutation_module_frameshift(rgi):
     """
 
     filename = "Rv2535c_A15fs_GCT_Tdel.fasta"
+    # filename = "Rv2535c_A15fs_GCT_Tdel_andSNP.fasta"
+    # filename = "Rv2535c_A15fs_GCT_CTdel.fasta"
     output_file = os.path.join(
         working_directory, outputs, "{}.json".format(filename))
     output_file_tab = os.path.join(

@@ -151,7 +151,7 @@ class Database(object):
 								variant_db = ""
 
 								for seq in j[i]['model_sequences']['sequence']:
-									variant_db = ('>%s_%s | model_type_id: 40293 | pass_bit_score: %s | SNP: None | Frameshift: None | %s\n' \
+									variant_db = ('>%s_%s | model_type_id: 40293 | pass_bit_score: %s | SNP: None | %s\n' \
 									% (i, seq, pass_bit_score, j[i]['ARO_name']))
 									"""
 									FOR TESTING - KARYN
@@ -166,13 +166,13 @@ class Database(object):
 										"""
 										# print("snp:", variant_db)
 									
-									if "40494" in j[i]["model_param"]:
-										fs_out = "Frameshift: %s" % (','.join(fsList))
-										variant_db = variant_db.replace("Frameshift: None", fs_out)
-										"""
-										FOR TESTING - KARYN
-										"""
-										# print("fs:", variant_db)
+									# if "40494" in j[i]["model_param"]:
+									# 	fs_out = "Frameshift: %s" % (','.join(fsList))
+									# 	variant_db = variant_db.replace("Frameshift: None", fs_out)
+									# 	"""
+									# 	FOR TESTING - KARYN
+									# 	"""
+									# 	# print("fs:", variant_db)
 
 									# writing everything to fasta
 									fout.write(variant_db)
@@ -284,19 +284,19 @@ class Database(object):
 								variant_db = ""
 
 								for seq in j[i]['model_sequences']['sequence']:
-									variant_db = ('>%s_%s | model_type_id: 40293 | pass_bit_score: %s | SNP: None | Frameshift: None | %s\n' \
+									variant_db = ('>%s_%s | model_type_id: 40293 | pass_bit_score: %s | Frameshift: None | %s\n' \
 									% (i, seq, pass_bit_score, j[i]['ARO_name']))
 									"""
 									FOR TESTING - KARYN
 									"""
 									# print("original:", variant_db)
 
-									if "snp" in j[i]["model_param"]:
-										snp_out = "SNP: %s" % (','.join(snpList))
-										variant_db = variant_db.replace("SNP: None", snp_out)
-										"""
-										FOR TESTING - KARYN
-										"""
+									# if "snp" in j[i]["model_param"]:
+									# 	snp_out = "SNP: %s" % (','.join(snpList))
+									# 	variant_db = variant_db.replace("SNP: None", snp_out)
+										# """
+										# FOR TESTING - KARYN
+										# """
 										# print("snp:", variant_db)
 									
 									if "40494" in j[i]["model_param"]:
@@ -333,8 +333,8 @@ class Database(object):
 
 								try:
 									for seq in j[i]['model_sequences']['sequence']:
-										fout.write('>%s_%s | model_type_id: 41091 | pass_bit_score: %s | SNP: %s | %s\n' \
-											% (i, seq, pass_bit_score, ','.join(snpList), j[i]['ARO_name']))
+										fout.write('>%s_%s | model_type_id: 41091 | pass_bit_score: %s | %s\n' \
+											% (i, seq, pass_bit_score, j[i]['ARO_name']))
 										fout.write('%s\n' % (j[i]['model_sequences']['sequence'][seq]['dna_sequence']['sequence']))
 								except Exception as e:
 									logger.warning("No model sequences for model (%s, %s). RGI will omit this model and keep running." \
