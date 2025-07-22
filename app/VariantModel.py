@@ -101,9 +101,9 @@ class Variant(MutationsModule):
 							sbjct_seq = hsp.sbjct.replace('-', '')
 							real_sbjct_length = len(sbjct_seq)
 
-							midline = hsp.match
+							# midline = hsp.match
 
-							card_prot_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["protein_sequence"]["sequence"]
+							card_dna_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["dna_sequence"]["sequence"]
 							# print(hsp)
 
 							# print(self.extract_nth_bar(orf_info.decode(), 0))
@@ -112,7 +112,7 @@ class Variant(MutationsModule):
 							# print(orf_from.decode())
 
 							if "Frameshift" in align_title:	
-								for value in self.frameshift(fsl, real_sbjct_length, hsp.query, hsp.sbjct_start, hsp.sbjct, hit_id, midline, card_prot_ref):
+								for value in self.frameshift(fsl, hsp.query, hsp.sbjct, card_dna_ref):
 									print(value)
 
 		with open(self.xml_file, 'r') as result_handle:
@@ -197,8 +197,9 @@ class Variant(MutationsModule):
 								# print("===========")
 								
 							# print("SNPS BELOW")
-							# for s in srv_result:
-							# 	print(s)
+							for s in srv_result:
+								if s:
+									print(s)
 								# if len(s) > 0:
 								# 	print(s)
 							
