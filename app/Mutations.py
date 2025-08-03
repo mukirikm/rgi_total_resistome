@@ -1,15 +1,22 @@
+import re
+import warnings
+
+from Bio import BiopythonWarning
+from Bio.Seq import Seq
+
 from app.Base import BaseModel
 from app.settings import *
-import re
-from Bio.Seq import Seq
-from Bio import BiopythonWarning
-import warnings
+
 warnings.simplefilter("ignore", BiopythonWarning)
 
 class MutationsModule(BaseModel):
     """
     Class for mutation searches (SNVs, frameshifts, coSNPs, etc.).
     """
+
+    def __init__ (self):
+        self.srv_result = None
+        self.fs_result = None
 			
     def __repr__(self):
         """
@@ -23,7 +30,7 @@ class MutationsModule(BaseModel):
         """
     
         snp_dict_list = []
-        srv_result =[]
+        # srv_result = []
 
         for each_snp in snpl:
             # print(each_snp)
@@ -131,32 +138,34 @@ class MutationsModule(BaseModel):
             # print("============================= NEXT SNP =============================")
                     
         # print(srv_output, "\n", qry, chan)
-            srv_result.append(srv_output)
+            # srv_result.append(srv_output)
+            self.srv_result = srv_output
 
-        return srv_result
+        return self.srv_result
 
     def frameshift(self, fsl, hsp_query, hsp_sbjct, card_dna_ref): 
         """
         Searches for frameshifts in sequences.
         """
+
+        self.fs_result = {}
     
         fs_dict_list = []
 
-        fs_result = []
         fs_curated_list = []
+        fs_denovo_list = []
+
+        fs_curated_result = []
+        fs_denovo_result = []
 
         # for deletions
         qry_codon_count = 0
-        qry_gap_count = 0
 
         # for insertions
         sbjct_codon_count = 0
-        sbjct_gap_count = 0
 
         ## grabbing curated frameshifts from blast XML (change to CARD JSON as input later?)
         for each_fs in fsl:
-            # print(each_fs)
-            # print(fsl)
             if each_fs != None:
                 # print(each_fs)
                 position = int(
@@ -168,32 +177,28 @@ class MutationsModule(BaseModel):
                 fs_dict_list.append(
                     {"original_aa": original[0], "aa_position": position})
                 
-                # unused values
-                """({"curated_nucl_position": round(position*3), "mutation_type": original[-1]})"""
-
         split_ref = re.findall('.'*3, card_dna_ref)
-        print("split CARD reference below")
-        print(split_ref)
+        # print("split CARD reference below")
+        # print(split_ref)
             
         """for nucleotide deletions """            
         ### isolate the position of the gap(s) and the affected codon(s)
         if "-" in hsp_query:
             ## split the query sequence into a list of codons
             split_qry = re.findall('.'*3, hsp_query)
-            print("\nsplit qry below")
-            print(split_qry)
+            # print("\nsplit qry below")
+            # print(split_qry)
             stripped_qry = hsp_query.replace("-", "")
 
             ## translate the query sequence into a protein (seq stripped of gaps because Seq hates them)
             translated_stripped_qry = str(Seq(stripped_qry).translate(table=11))
-            print("translated stripped qry below")
-            print(translated_stripped_qry)
+            # print("translated stripped qry below")
+            # print(translated_stripped_qry)
 
             ## iterate through query codon list, find gaps, note position, and grab all relevant information
             for qry_codons in split_qry:
                 if "-" in qry_codons:
                     qry_codon_count += 1 # index starts at 1 not 0
-                    qry_gap_count += 1
 
                     aa_pos, affected_codon, corr_aa, translated_codon = self.single_fs(qry_codon_count, translated_stripped_qry, split_ref)
                     fs_ter = self.termination(translated_stripped_qry, aa_pos)
@@ -201,26 +206,25 @@ class MutationsModule(BaseModel):
                     for eachfs in fs_dict_list:
                         # print("current curated frameshift:", eachfs)
                         if eachfs["original_aa"] == translated_codon and eachfs["aa_position"] == aa_pos:
-                            print("curated fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
+                            logger.info("curated del fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
+                            logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": qry_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
                             fs_curated_list.append("%s%s%s" % (translated_codon, aa_pos, corr_aa))
-                            fs_result.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter))
-                            print({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": qry_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
-
+                            fs_curated_result.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter))
                         else:
                             pass
-                        
+                    
                     if len(fs_curated_list) != 0:
                         for curatedfs in fs_curated_list:
-                            if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list:
-                                print("novel fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
-                                fs_result.append("*%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter))
-                                print({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": qry_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
-                    
+                            if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list and ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_denovo_list:
+                                logger.info("novel del fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
+                                logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": qry_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
+                                fs_denovo_list.append("%s%s%s" % (translated_codon, aa_pos, corr_aa))
+                                fs_denovo_result.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) 
                     else:
                         if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list:
-                            print("novel fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
-                            fs_result.append("*%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter))
-                            print({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": qry_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
+                            logger.info("novel del fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
+                            logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": qry_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
+                            fs_denovo_result.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter))
 
                 ## for any other nucleotide in the sequence DO NOT COMMENT OUT
                 else:
@@ -231,21 +235,19 @@ class MutationsModule(BaseModel):
         if "-" in hsp_sbjct:
             ## split the subject sequence into a list of codons
             split_sbjct = re.findall('.'*3, hsp_sbjct)
-            print("\nsplit sbjct below")
-            print(split_sbjct)
+            # print("\nsplit sbjct below")
+            # print(split_sbjct)
             stripped_sbjct = hsp_sbjct.replace("-", "")
             
             ## translate the subject sequence into a protein (seq stripped of gaps because Seq hates them)
             translated_stripped_sbjct = str(Seq(stripped_sbjct).translate(table=11, gap="-"))
-            print("translated stripped sb")
-            print(translated_stripped_sbjct)
+            # print("translated stripped sb")
+            # print(translated_stripped_sbjct)
 
             ## iterate through subject codon list, find gaps, note position, and grab all relevant information
             for sbjct_codons in split_sbjct:
                 if "-" in sbjct_codons:
                     sbjct_codon_count += 1 # index starts at 1 not 0
-                    print("sbjct codon count:", sbjct_codon_count)
-                    sbjct_gap_count += 1
 
                     aa_pos, affected_codon, corr_aa, translated_codon = self.single_fs(sbjct_codon_count, translated_stripped_sbjct, split_ref)
                     fs_ter = self.termination(translated_stripped_sbjct, aa_pos)
@@ -253,37 +255,35 @@ class MutationsModule(BaseModel):
                     for eachfs in fs_dict_list:
                         # print("current curated frameshift:", eachfs)
                         if eachfs["original_aa"] == translated_codon and eachfs["aa_position"] == aa_pos:
-                            print("curated fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
+                            logger.info("curated ins fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
+                            logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": sbjct_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
                             fs_curated_list.append("%s%s%s" % (translated_codon, aa_pos, corr_aa))
-                            fs_result.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter))
-                            print({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": sbjct_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
-
+                            fs_curated_result.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter))
                         else:
                             pass
                         
                     if len(fs_curated_list) != 0:
                         for curatedfs in fs_curated_list:
                             if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list:
-                                print("novel fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
-                                fs_result.append("*%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter))
-                                print({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": sbjct_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
-                    
+                                logger.info("novel ins fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
+                                logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": sbjct_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
+                                fs_denovo_list.append("%s%s%s" % (translated_codon, aa_pos, corr_aa))
+                                fs_denovo_result.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter))
                     else:
                         if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list:
-                            print("novel fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
-                            fs_result.append("*%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter))
-                            print({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": sbjct_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
-                                  
+                            logger.info("novel ins fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
+                            logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": sbjct_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
+                            fs_denovo_result.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter))
+
                 else:
                     sbjct_codon_count += 1   
-                    # print(sbjct_nucl, sbjct_nucl_count)
 
-        # print("========= curated and discovery framshift lists ==========") 
-        # return fs_curated_list + fs_discovery_list
-        # print(fs_curated_list)
-        # print(fs_discovery_list)
+        if len(fs_curated_result) > 0:
+            self.fs_result["curated_fs"] = fs_curated_result
+        if len(fs_denovo_result) > 0:
+            self.fs_result["denovo_fs"] = fs_denovo_result
             
-        yield fs_result
+        return self.fs_result
 
     def single_fs(self, codon_count, translated_stripped_seq, split_ref):
         aa_pos = codon_count
@@ -292,17 +292,6 @@ class MutationsModule(BaseModel):
         translated_codon = str(Seq(affected_codon).translate(table=11))
 
         return aa_pos, affected_codon, corr_aa, translated_codon
-    
-    # def double_fs(self, qry_nucl_count, translated_stripped_qry, split_ref):
-    #     aa_pos = round(qry_nucl_count/3)
-    #     corr_aa = translated_stripped_qry[(aa_pos) - 1] # index starts at 0
-    #     affected_codon = split_sbjct[aa_pos]
-    #     translated_sbjct_codon = str(Seq(affected_codon).translate(table=11))
-
-    #     print("qry nucl //3 (subject aa position):", aa_pos)
-    #     print("split subject @ aa_pos - 1:", split_sbjct[aa_pos - 1])
-
-    #     return aa_pos, corr_aa, translated_sbjct_codon, affected_codon
     
     def termination(self, translated_stripped_seq, aa_pos):
         aa_count = 0
@@ -313,6 +302,5 @@ class MutationsModule(BaseModel):
                 break
             else:
                 aa_count += 1
-                # print(aa)
         
         return aa_count + 1
