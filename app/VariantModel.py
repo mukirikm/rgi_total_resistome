@@ -57,63 +57,58 @@ class Variant(MutationsModule):
 		with open(os.path.join(self.data,"card.json")) as json_file:
 			json_data = json.load(json_file)
 
-		with open(self.dna_xml_file, 'r') as blastn_result_handle:
-			blastn_records = NCBIXML.parse(blastn_result_handle)	
-			for blastn_record in blastn_records:
-				for alignment in blastn_record.alignments:
-					align_title = alignment.title
+		# if self.dna_xml_file == None:
+		# 	pass
+		# else:
+		try:
+			with open(self.dna_xml_file, 'r') as blastn_result_handle:
+				blastn_records = NCBIXML.parse(blastn_result_handle)	
+				for blastn_record in blastn_records:
+					for alignment in blastn_record.alignments:
+						align_title = alignment.title
 
-					model_type_id = self.extract_nth_bar(align_title, 0)
-					# logger.info("model_type_id: {} ".format(model_type_id))
-					space_pos = align_title.index(' ')
-					hit_id = align_title[0:space_pos]
-					hit_id = hit_id.encode('ascii','replace')
-					# print("debug 2:", hit_id)
+						model_type_id = self.extract_nth_bar(align_title, 0)
+						# logger.info("model_type_id: {} ".format(model_type_id))
+						space_pos = align_title.index(' ')
+						hit_id = align_title[0:space_pos]
+						hit_id = hit_id.encode('ascii','replace')
+						# print("debug 2:", hit_id)
 
-					model_descrpt = align_title[align_title.index(' ')+1:]
-					underscore_in_MD = model_descrpt.index('_')
-					model_id = model_descrpt[0:underscore_in_MD]
-					seq_in_model = model_descrpt[underscore_in_MD+1: model_descrpt.index(' ')]
-					pass_value = self.extract_nth_bar(alignment.title, 1)
-					# logger.info("pass_value: {}".format(pass_value))
+						model_descrpt = align_title[align_title.index(' ')+1:]
+						underscore_in_MD = model_descrpt.index('_')
+						model_id = model_descrpt[0:underscore_in_MD]
+						seq_in_model = model_descrpt[underscore_in_MD+1: model_descrpt.index(' ')]
+						pass_value = self.extract_nth_bar(alignment.title, 1)
+						# logger.info("pass_value: {}".format(pass_value))
 
-					if model_type_id == 40293:
-						try:
-							true_pass_evalue = float(pass_value)
-						except ValueError:
-							true_pass_evalue = float(
-								pass_value[0:pass_value.find(' ')])
+						if model_type_id == 40293:
+							try:
+								true_pass_evalue = float(pass_value)
+							except ValueError:
+								true_pass_evalue = float(
+									pass_value[0:pass_value.find(' ')])
 
-						logger.info("mutation | model_type_id = " + str(align_title))
-						init = 0
-						fsl = []
-						temp = ""
-						
-						evalue_fs = self.extract_nth_bar(align_title, 2)
-						fsl = evalue_fs.split(',')
-						# print("\nblastn align title:", align_title)
-						# print(fsl)
-						# print()
-						
-						for hsp in alignment.hsps:
-							query_seq =  hsp.query.replace('-', '')
-							real_query_length = len(query_seq)
-							sbjct_seq = hsp.sbjct.replace('-', '')
-							real_sbjct_length = len(sbjct_seq)
+							logger.info("mutation | model_type_id = " + str(align_title))
+							init = 0
+							fsl = []
+							temp = ""
+							
+							evalue_fs = self.extract_nth_bar(align_title, 2)
+							fsl = evalue_fs.split(',')
+							
+							for hsp in alignment.hsps:
+								query_seq =  hsp.query.replace('-', '')
+								real_query_length = len(query_seq)
+								sbjct_seq = hsp.sbjct.replace('-', '')
+								real_sbjct_length = len(sbjct_seq)
 
-							# midline = hsp.match
+								card_dna_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["dna_sequence"]["sequence"]
 
-							card_dna_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["dna_sequence"]["sequence"]
-							# print(hsp)
-
-							# print(self.extract_nth_bar(orf_info.decode(), 0))
-							# print(self.extract_nth_bar(orf_info.decode(), 1))
-							# print(self.extract_nth_bar(orf_info.decode(), 2))
-							# print(orf_from.decode())
-
-							if "Frameshift" in align_title:	
-								for value in self.frameshift(fsl, hsp.query, hsp.sbjct, card_dna_ref):
-									print(value)
+								if "Frameshift" in align_title:	
+									self.frameshift(fsl, hsp.query, hsp.sbjct, card_dna_ref)
+		except FileNotFoundError as e:
+			logger.info("Skipping frameshift search...")
+			pass
 
 		with open(self.xml_file, 'r') as result_handle:
 			blast_records = NCBIXML.parse(result_handle)
@@ -184,40 +179,37 @@ class Variant(MutationsModule):
 							# print(self.extract_nth_bar(orf_info.decode(), 2))
 							# print(orf_from.decode())
 
-							srv_result = self.single_resistance_variant(
+							self.single_resistance_variant(
 								predicted_genes_dict_protein, submitted_proteins_dict, snpl, real_sbjct_length, hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info
 								)
 							
-							# print(srv_result)
-							# print(fs_result)
-							# for k in fs_result:
-							# 	print(k)
-								# for x,s in k.items():
-								# 	print(x,s)
-								# print("===========")
-								
-							# print("SNPS BELOW")
-							for s in srv_result:
-								if s:
-									print(s)
-								# if len(s) > 0:
-								# 	print(s)
+							mm_output = self.consolidate_mutations()
+							print(mm_output)
 							
-							for loaded_snp in srv_result:
-								if len(loaded_snp) > 0: ## to weed out SNPs without ORFs/qry
-									if hsp.query[loaded_snp["qry"]] == loaded_snp["chan"]:
+							if mm_output != None:
+								for loaded_snp in mm_output:
+									if len(loaded_snp) > 0: ## to weed out SNPs without ORFs or qry entries
+										# print(loaded_snp)
 										try:
 											# print("debug 2:", hit_id, ",", hsp.query[loaded_snp["qry"]], ",", loaded_snp["qry"], ",", loaded_snp["chan"])
-											if float(hsp.bits) >= float(true_pass_evalue):
+											if float(hsp.bits) >= float(true_pass_evalue): # if the hit passes its bitscore cut off (but isn't perfect)
 												# print(hsp.bits)
 												sinsidedict = {}
 												sinsidedict["type_match"] = "Strict"
-												sinsidedict["snp"] = loaded_snp["eachs"]
-												sinsidedict["query_snp"] = loaded_snp["query_snps"]
-												sinsidedict["orf_strand"] = self.extract_nth_bar(orf_info.decode(), 0)
-												sinsidedict["orf_start"] = self.extract_nth_bar(orf_info.decode(), 1)
-												sinsidedict["orf_end"] = self.extract_nth_bar(orf_info.decode(), 2)
-												sinsidedict["orf_from"] = orf_from.decode()
+												if loaded_snp["eachs"]:
+													sinsidedict["snp"] = loaded_snp["eachs"]
+													sinsidedict["query_snp"] = loaded_snp["query_snps"]
+													sinsidedict["orf_strand"] = self.extract_nth_bar(orf_info.decode(), 0)
+													sinsidedict["orf_start"] = self.extract_nth_bar(orf_info.decode(), 1)
+													sinsidedict["orf_end"] = self.extract_nth_bar(orf_info.decode(), 2)
+													sinsidedict["orf_from"] = orf_from.decode()
+												else:
+													sinsidedict["snp"] = loaded_snp["curated_fs"]
+													sinsidedict["query_snp"] = "n/a"
+													sinsidedict["orf_strand"] = "n/a"
+													sinsidedict["orf_start"] = "n/a"
+													sinsidedict["orf_end"] = "n/a"
+													sinsidedict["orf_from"] = "n/a"
 												sinsidedict["model_name"] = json_data[model_id]["model_name"]
 												sinsidedict["model_type"] = json_data[model_id]["model_type"]
 												sinsidedict["model_type_id"] = model_type_id
@@ -274,7 +266,10 @@ class Variant(MutationsModule):
 													sinsidedict["query_start"] = hsp.query_start
 													sinsidedict["query_end"] = hsp.query_start + real_query_length
 													sinsidedict["query_from"] = blast_record.query
-													sinsidedict["orf_prot_sequence"] = loaded_snp["orf_protein_sequence"]
+													if loaded_snp["orf_protein_sequence"]:
+														sinsidedict["orf_prot_sequence"] = loaded_snp["orf_protein_sequence"]
+													else:
+														sinsidedict["orf_prot_sequence"] = "n/a"
 													# print("debug 2:", value)
 
 													sinsidedict["hit_start"] = ""
@@ -293,12 +288,20 @@ class Variant(MutationsModule):
 											else:
 												slinsidedict = {}
 												slinsidedict["type_match"] = "Loose"
-												slinsidedict["snp"] = loaded_snp["eachs"]
-												slinsidedict["query_snp"] = loaded_snp["query_snps"]
-												slinsidedict["orf_strand"] = self.extract_nth_bar(orf_info.decode(), 0)
-												slinsidedict["orf_start"] = self.extract_nth_bar(orf_info.decode(), 1)
-												slinsidedict["orf_end"] = self.extract_nth_bar(orf_info.decode(), 2)
-												slinsidedict["orf_from"] = orf_from.decode()
+												if loaded_snp["eachs"]:
+													slinsidedict["snp"] = loaded_snp["eachs"]
+													slinsidedict["query_snp"] = loaded_snp["query_snps"]
+													slinsidedict["orf_strand"] = self.extract_nth_bar(orf_info.decode(), 0)
+													slinsidedict["orf_start"] = self.extract_nth_bar(orf_info.decode(), 1)
+													slinsidedict["orf_end"] = self.extract_nth_bar(orf_info.decode(), 2)
+													slinsidedict["orf_from"] = orf_from.decode()
+												else:
+													slinsidedict["snp"] = loaded_snp["curated_fs"]
+													slinsidedict["query_snp"] = "n/a"
+													slinsidedict["orf_strand"] = "n/a"
+													slinsidedict["orf_start"] = "n/a"
+													slinsidedict["orf_end"] = "n/a"
+													slinsidedict["orf_from"] = "n/a"
 												slinsidedict["model_name"] = json_data[model_id]["model_name"]
 												slinsidedict["model_type"] = json_data[model_id]["model_type"]
 												slinsidedict["model_type_id"] = model_type_id
@@ -354,7 +357,10 @@ class Variant(MutationsModule):
 													slinsidedict["query_start"] = hsp.query_start
 													slinsidedict["query_end"] = hsp.query_start + real_query_length
 													slinsidedict["query_from"] = blast_record.query
-													slinsidedict["orf_prot_sequence"] = loaded_snp["orf_protein_sequence"]
+													if loaded_snp["orf_protein_sequence"]:
+														slinsidedict["orf_prot_sequence"] = loaded_snp["orf_protein_sequence"]
+													else:
+														slinsidedict["orf_prot_sequence"] = "n/a"
 													# print("debug 4:", value)
 
 													# print("debug:", slinsidedict["query_start"], slinsidedict["query_end"], slinsidedict["query_from"])
@@ -369,15 +375,16 @@ class Variant(MutationsModule):
 												loose["{}|hsp_num:{}".format(
 													hit_id.decode(), init)] = slinsidedict
 
-												# print(slinsidedict["perc_identity"])
 												init += 1
+											# print(slinsidedict)
 
 										except Exception as e:
 											logger.warning("Exception : {} -> {} -> Model({})".format(type(e), e, model_id))
 											logger.warning("{} ---> hsp.bits: {} {} ? {}".format(json_data[model_id]["model_name"],hsp.bits,type(hsp.bits), type(true_pass_evalue)))
+									# else:
+									# 	print(hsp.query[loaded_snp["qry"]], "+", loaded_snp["chan"])
 
-			blastResults = self.results(blastResults, blast_record.query, perfect, strict , loose, self.include_nudge)
-			# print(blastResults)
+				blastResults = self.results(blastResults, blast_record.query, perfect, strict , loose, self.include_nudge)
+				# print(blastResults)
 
 		return blastResults
-		# print("debug:", blastResults)

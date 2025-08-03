@@ -30,7 +30,7 @@ class MutationsModule(BaseModel):
         """
     
         snp_dict_list = []
-        # srv_result = []
+        self.srv_result = []
 
         for each_snp in snpl:
             # print(each_snp)
@@ -118,7 +118,7 @@ class MutationsModule(BaseModel):
                 sbj = int(pos) - hsp_sbjct_start + self.find_num_dash(hsp_sbjct, (int(pos) - hsp_sbjct_start))
                 # print(hsp_query[qry], "+", chan, ":", qry, ">", sbj)
 
-                if hsp_query[qry] == chan:
+                if hsp_query[qry] == chan: # if the amino acid at our specific position in the query sequence is the same as the NEW aa (same SNP change has occured)
                     # print(eachs)
                     query_snps = {}
                     # logger.debug("mutation | Model:"+str(model_id) + " | pos:" +str(pos) +" | change: "+str(hsp.query[pos - hsp.sbjct_start + \
@@ -134,13 +134,10 @@ class MutationsModule(BaseModel):
                     # logger.debug("query_snp on frame {} {}".format(hsp.frame, json.dumps(query_snps, indent=2)))
 
                     srv_output["query_snps"] = query_snps
-            # print(srv_output)
-            # print("============================= NEXT SNP =============================")
-                    
-        # print(srv_output, "\n", qry, chan)
-            # srv_result.append(srv_output)
-            self.srv_result = srv_output
+     
+                    self.srv_result.append(srv_output)
 
+        # if len(self.srv_result) > 0: # this doesn't work...
         return self.srv_result
 
     def frameshift(self, fsl, hsp_query, hsp_sbjct, card_dna_ref): 
@@ -304,3 +301,13 @@ class MutationsModule(BaseModel):
                 aa_count += 1
         
         return aa_count + 1
+
+    def consolidate_mutations(self):
+        try:
+            if self.srv_result:
+                for srv_result_dict in self.srv_result:
+                    return [srv_result_dict | self.fs_result]
+            else:
+                return self.fs_result
+        except AttributeError: # if the input is a protein there won't be a BLASTN xml generated, thus, no frameshift output
+             return self.srv_result

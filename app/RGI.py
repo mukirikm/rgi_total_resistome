@@ -326,6 +326,7 @@ class RGI(RGIBase):
 		"""Sets blast xml filepath."""
 		logger.info("set blastp xml file: [{}]".format(fp))
 		self.blast_results_xml_file = fp
+		# print("\nBLASTP BLAST XML FILE PATH:", self.blast_results_xml_file, "\n")
 
 	def set_dna_xml_filepath(self,fp):
 		"""Sets blastn xml filepath."""
@@ -337,12 +338,19 @@ class RGI(RGIBase):
 		"""Process protein sequence(s)."""
 		file_name = os.path.basename(self.input_sequence)
 		xml_file = os.path.join(self.working_directory,"{}.temp.blastRes.xml".format(file_name))
+		# print(xml_file)
+
+		# # making our filter object happy
+		# blastn_results_xml_file = os.path.join(self.working_directory,"{}.temp.empty.dna.xml".format(file_name))
+		# self.set_dna_xml_filepath(blastn_results_xml_file)
 
 		if self.aligner == "diamond":
 			diamond_obj = Diamond(self.input_sequence, xml_file, local_database=self.local_database, num_threads=self.threads)
+			# print(diamond_obj)
 			diamond_obj.run()
 		else:
 			blast_obj = Blast(self.input_sequence, xml_file, path=os.path.join(self.db,"protein.db"), local_database=self.local_database, num_threads=self.threads)
+			# print(blast_obj)
 			blast_obj.run()
 
 		self.set_xml_filepath(xml_file)
@@ -407,8 +415,9 @@ class RGI(RGIBase):
 	def filter_process(self):
 		logger.info("run filter")
 		"""Filter each detection models and predict resistome(s)."""
-		filter_obj = Filter(self.input_type,  self.loose, self.input_sequence, self.blast_results_xml_file, self.blastn_results_xml_file, \
-			os.path.join(self.dp,"card.json"),os.path.basename(self.input_sequence) ,self.output_file,self.threads, self)
+		filter_obj = Filter(self.input_type, self.loose, self.input_sequence, self.blast_results_xml_file, self.blastn_results_xml_file, \
+			os.path.join(self.dp,"card.json"), os.path.basename(self.input_sequence), self.output_file,self.threads, self)
+		# print(filter_obj)
 		filter_obj.run()
 
 	def output(self): pass

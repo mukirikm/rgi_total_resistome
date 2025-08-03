@@ -73,7 +73,7 @@ class ConvertJsonToTSV(object):
 								"Best_Identities",
 								"ARO",
 								"Model_type",
-								"SNPs_in_Best_Hit_ARO",
+								"Mutations",
 								"Other_SNPs",
 								"Drug Class",
 								"Resistance Mechanism",
