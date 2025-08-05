@@ -209,7 +209,6 @@ def test_rgi_mtb_with_mutation_S17T_model(rgi):
 # model_id 1176 Mycobacterium tuberculosis katG mutations conferring resistance to isoniazid, peptide test:
 # reference_W90R_pep.txt contains W90R mutation
 
-
 def test_rgi_mtb_with_mutation_W90R_model(rgi):
 
     filename = "reference_W90R_pep.txt"
@@ -264,9 +263,13 @@ def test_mutation_module_frameshift(rgi):
     pytest test_1.py::test_mutation_module_frameshift -vs --color=auto
     """
 
-    filename = "Rv2535c_A15fs_GCT_Tdel.fasta"
+    # filename = "Rv2535c_A15fs_GCT_Tdel.fasta"
+    # filename = "Rv2535c_A15fs_randominsertion.fasta"
+    # filename = "Rv2535c_A15fs_Tdel_Ains.fasta"
+    # filename = "Rv2535c_A15fs_andanotherdel.fasta"
     # filename = "Rv2535c_A15fs_GCT_Tdel_andSNP.fasta"
     # filename = "Rv2535c_A15fs_GCT_CTdel.fasta"
+    filename = "Rv2535c_A15fsR271fs.fasta" # single (curated) and double (de novo) frameshift deletions
     output_file = os.path.join(
         working_directory, outputs, "{}.json".format(filename))
     output_file_tab = os.path.join(

@@ -145,7 +145,8 @@ class MutationsModule(BaseModel):
         Searches for frameshifts in sequences.
         """
 
-        self.fs_result = {}
+        fs_result_prelim = {}
+        self.fs_result = []
     
         fs_dict_list = []
 
@@ -276,9 +277,11 @@ class MutationsModule(BaseModel):
                     sbjct_codon_count += 1   
 
         if len(fs_curated_result) > 0:
-            self.fs_result["curated_fs"] = fs_curated_result
+            fs_result_prelim["curated_fs"] = fs_curated_result
         if len(fs_denovo_result) > 0:
-            self.fs_result["denovo_fs"] = fs_denovo_result
+            fs_result_prelim["denovo_fs"] = fs_denovo_result
+
+        self.fs_result.append(fs_result_prelim)
             
         return self.fs_result
 

@@ -184,19 +184,21 @@ class Variant(MutationsModule):
 								)
 							
 							mm_output = self.consolidate_mutations()
-							print(mm_output)
+							# print(mm_output)
+							# for s in mm_output:
+							# 	print(s)
 							
 							if mm_output != None:
 								for loaded_snp in mm_output:
 									if len(loaded_snp) > 0: ## to weed out SNPs without ORFs or qry entries
-										# print(loaded_snp)
+										# print("loaded snp:", loaded_snp)
 										try:
 											# print("debug 2:", hit_id, ",", hsp.query[loaded_snp["qry"]], ",", loaded_snp["qry"], ",", loaded_snp["chan"])
 											if float(hsp.bits) >= float(true_pass_evalue): # if the hit passes its bitscore cut off (but isn't perfect)
-												# print(hsp.bits)
+												# print("hsp bits:", hsp.bits)
 												sinsidedict = {}
 												sinsidedict["type_match"] = "Strict"
-												if loaded_snp["eachs"]:
+												if "eachs" in loaded_snp:
 													sinsidedict["snp"] = loaded_snp["eachs"]
 													sinsidedict["query_snp"] = loaded_snp["query_snps"]
 													sinsidedict["orf_strand"] = self.extract_nth_bar(orf_info.decode(), 0)
@@ -204,12 +206,20 @@ class Variant(MutationsModule):
 													sinsidedict["orf_end"] = self.extract_nth_bar(orf_info.decode(), 2)
 													sinsidedict["orf_from"] = orf_from.decode()
 												else:
-													sinsidedict["snp"] = loaded_snp["curated_fs"]
+													sinsidedict["snp"] = "n/a"
 													sinsidedict["query_snp"] = "n/a"
 													sinsidedict["orf_strand"] = "n/a"
 													sinsidedict["orf_start"] = "n/a"
 													sinsidedict["orf_end"] = "n/a"
 													sinsidedict["orf_from"] = "n/a"
+												if "curated_fs" in loaded_snp:
+													sinsidedict["curated_fs"] = loaded_snp["curated_fs"]
+												else:
+													sinsidedict["curated_fs"] = "n/a"
+												if "denovo_fs" in loaded_snp:
+													sinsidedict["denovo_fs"] = loaded_snp["denovo_fs"]
+												else:
+													sinsidedict["denovo_fs"] = "n/a"
 												sinsidedict["model_name"] = json_data[model_id]["model_name"]
 												sinsidedict["model_type"] = json_data[model_id]["model_type"]
 												sinsidedict["model_type_id"] = model_type_id
@@ -254,7 +264,10 @@ class Variant(MutationsModule):
 													if orf_info.decode().split(' # ')[0] in predicted_genes_dict:
 														sinsidedict["orf_dna_sequence"] = predicted_genes_dict[orf_info.decode().split(' # ')[0]]
 														# sinsidedict["orf_prot_sequence"] = str(Seq(predicted_genes_dict[orf_info.decode().split(' # ')[0]], generic_dna).translate(table=11)).strip("*")
-														sinsidedict["orf_prot_sequence"] = loaded_snp["orf_protein_sequence"]
+														if "orf_protein_sequence" in loaded_snp:
+															sinsidedict["orf_prot_sequence"] = loaded_snp["orf_protein_sequence"]
+														else:
+															sinsidedict["orf_prot_sequence"] = "n/a"
 														# print("debug 1:", value)
 
 													else:
@@ -266,7 +279,7 @@ class Variant(MutationsModule):
 													sinsidedict["query_start"] = hsp.query_start
 													sinsidedict["query_end"] = hsp.query_start + real_query_length
 													sinsidedict["query_from"] = blast_record.query
-													if loaded_snp["orf_protein_sequence"]:
+													if "orf_protein_sequence" in loaded_snp:
 														sinsidedict["orf_prot_sequence"] = loaded_snp["orf_protein_sequence"]
 													else:
 														sinsidedict["orf_prot_sequence"] = "n/a"
@@ -286,9 +299,10 @@ class Variant(MutationsModule):
 												init += 1
 
 											else:
+												# print("hsp bits:", hsp.bits)
 												slinsidedict = {}
 												slinsidedict["type_match"] = "Loose"
-												if loaded_snp["eachs"]:
+												if "eachs" in loaded_snp:
 													slinsidedict["snp"] = loaded_snp["eachs"]
 													slinsidedict["query_snp"] = loaded_snp["query_snps"]
 													slinsidedict["orf_strand"] = self.extract_nth_bar(orf_info.decode(), 0)
@@ -296,12 +310,20 @@ class Variant(MutationsModule):
 													slinsidedict["orf_end"] = self.extract_nth_bar(orf_info.decode(), 2)
 													slinsidedict["orf_from"] = orf_from.decode()
 												else:
-													slinsidedict["snp"] = loaded_snp["curated_fs"]
+													slinsidedict["snp"] = "n/a"
 													slinsidedict["query_snp"] = "n/a"
 													slinsidedict["orf_strand"] = "n/a"
 													slinsidedict["orf_start"] = "n/a"
 													slinsidedict["orf_end"] = "n/a"
 													slinsidedict["orf_from"] = "n/a"
+												if "curated_fs" in loaded_snp:
+													slinsidedict["curated_fs"] = loaded_snp["curated_fs"]
+												else:
+													slinsidedict["curated_fs"] = "n/a"
+												if "denovo_fs" in loaded_snp:
+													slinsidedict["denovo_fs"] = loaded_snp["denovo_fs"]
+												else:
+													slinsidedict["denovo_fs"] = "n/a"
 												slinsidedict["model_name"] = json_data[model_id]["model_name"]
 												slinsidedict["model_type"] = json_data[model_id]["model_type"]
 												slinsidedict["model_type_id"] = model_type_id
@@ -346,7 +368,10 @@ class Variant(MutationsModule):
 													if orf_info.decode().split(' # ')[0] in predicted_genes_dict:
 														slinsidedict["orf_dna_sequence"] = predicted_genes_dict[orf_info.decode().split(' # ')[0]]
 														# slinsidedict["orf_prot_sequence"] = str(Seq(predicted_genes_dict[orf_info.decode().split(' # ')[0]], generic_dna).translate(table=11)).strip("*")
-														slinsidedict["orf_prot_sequence"] = loaded_snp["orf_protein_sequence"]
+														if "orf_protein_sequence" in loaded_snp:
+															slinsidedict["orf_prot_sequence"] = loaded_snp["orf_protein_sequence"]
+														else:
+															slinsidedict["orf_prot_sequence"] = "n/a"
 														# print("debug 3:", value)
 
 													else:
@@ -357,7 +382,7 @@ class Variant(MutationsModule):
 													slinsidedict["query_start"] = hsp.query_start
 													slinsidedict["query_end"] = hsp.query_start + real_query_length
 													slinsidedict["query_from"] = blast_record.query
-													if loaded_snp["orf_protein_sequence"]:
+													if "orf_protein_sequence" in loaded_snp:
 														slinsidedict["orf_prot_sequence"] = loaded_snp["orf_protein_sequence"]
 													else:
 														slinsidedict["orf_prot_sequence"] = "n/a"
