@@ -149,6 +149,7 @@ class Homolog(BaseModel):
                                     ppinsidedict["evalue"] = hsp.expect
                                     ppinsidedict["bit_score"] = hsp.bits
                                     ppinsidedict["max_identities"] = hsp.identities
+                                    ppinsidedict["max_positives"] = hsp.positives
                                     ppinsidedict["cvterm_id"] = json_data[modelID]["model_sequences"][
                                         "sequence"][seqinModel]["NCBI_taxonomy"]["NCBI_taxonomy_cvterm_id"]
                                     ppinsidedict["query"] = hsp.query
@@ -205,6 +206,9 @@ class Homolog(BaseModel):
 
                                     ppinsidedict["perc_identity"] = float(format(
                                         float(ppinsidedict["max_identities"]*100) / len(ppinsidedict["query"]), '.2f'))
+                                    ppinsidedict["perc_positive"] = float(format(
+                                        float(ppinsidedict["max_positives"]*100) / len(ppinsidedict["query"]), '.2f'))
+
                                     perfect["{}|hsp_num:{}".format(
                                         hitid.decode(), init)] = ppinsidedict
                                     init += 1
@@ -235,6 +239,7 @@ class Homolog(BaseModel):
                                     insidedict["evalue"] = hsp.expect
                                     insidedict["bit_score"] = hsp.bits
                                     insidedict["max_identities"] = hsp.identities
+                                    insidedict["max_positives"] = hsp.positives
                                     insidedict["cvterm_id"] = json_data[modelID]["model_sequences"][
                                         "sequence"][seqinModel]["NCBI_taxonomy"]["NCBI_taxonomy_cvterm_id"]
                                     insidedict["query"] = hsp.query
@@ -291,6 +296,8 @@ class Homolog(BaseModel):
 
                                     insidedict["perc_identity"] = float(format(
                                         float(insidedict["max_identities"]*100) / len(insidedict["query"]), '.2f'))
+                                    insidedict["perc_positive"] = float(format(
+                                        float(insidedict["max_positives"]*100) / len(insidedict["query"]), '.2f'))
 
                                     strict["{}|hsp_num:{}".format(
                                         hitid.decode(), init)] = insidedict
@@ -321,6 +328,7 @@ class Homolog(BaseModel):
                                     linsidedict["ARO_category"] = json_data[modelID]["ARO_category"]
                                     linsidedict["evalue"] = hsp.expect
                                     linsidedict["max_identities"] = hsp.identities
+                                    linsidedict["max_positives"] = hsp.positives
                                     linsidedict["bit_score"] = hsp.bits
                                     linsidedict["cvterm_id"] = json_data[modelID]["model_sequences"][
                                         "sequence"][seqinModel]["NCBI_taxonomy"]["NCBI_taxonomy_cvterm_id"]
@@ -378,6 +386,9 @@ class Homolog(BaseModel):
 
                                     linsidedict["perc_identity"] = float(format(
                                         float(linsidedict["max_identities"]*100) / len(linsidedict["query"]), '.2f'))
+                                    linsidedict["perc_positive"] = float(format(
+                                        float(linsidedict["max_positives"]*100) / len(linsidedict["query"]), '.2f'))
+                                    
                                     loose["{}|hsp_num:{}".format(
                                         hitid.decode(), init)] = linsidedict
 

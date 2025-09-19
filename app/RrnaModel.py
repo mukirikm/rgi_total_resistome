@@ -178,6 +178,7 @@ class Rrna(BaseModel):
                                                 sinsidedict["ARO_category"] = json_data[model_id]["ARO_category"]
                                                 sinsidedict["evalue"] = hsp.expect
                                                 sinsidedict["max_identities"] = hsp.identities
+                                                sinsidedict["max_positives"] = hsp.positives
                                                 sinsidedict["bit_score"] = hsp.bits
                                                 sinsidedict["cvterm_id"] = json_data[model_id]["model_sequences"][
                                                     "sequence"][seq_in_model]["NCBI_taxonomy"]["NCBI_taxonomy_cvterm_id"]
@@ -201,8 +202,11 @@ class Rrna(BaseModel):
                                                         "sequence"][seq_in_model]["dna_sequence"]["partial"]
                                                 else:
                                                     sinsidedict["partial"] = "0"
+
                                                 sinsidedict["perc_identity"] = float(format(
                                                     float(sinsidedict["max_identities"]*100) / len(sinsidedict["query"]), '.2f'))
+                                                sinsidedict["perc_positive"] = float(format(
+                                                    float(sinsidedict["max_positives"]*100) / len(sinsidedict["query"]), '.2f'))
 
                                                 strict["{}|hsp_num:{}".format(
                                                     hit_id.decode(), init)] = sinsidedict
@@ -245,6 +249,7 @@ class Rrna(BaseModel):
                                                 slinsidedict["evalue"] = hsp.expect
                                                 slinsidedict["bit_score"] = hsp.bits
                                                 slinsidedict["max_identities"] = hsp.identities
+                                                slinsidedict["max_positives"] = hsp.positives
                                                 slinsidedict["cvterm_id"] = json_data[model_id]["model_sequences"][
                                                     "sequence"][seq_in_model]["NCBI_taxonomy"]["NCBI_taxonomy_cvterm_id"]
                                                 slinsidedict["query"] = hsp.query
@@ -267,8 +272,11 @@ class Rrna(BaseModel):
                                                         "sequence"][seq_in_model]["dna_sequence"]["partial"]
                                                 else:
                                                     slinsidedict["partial"] = "0"
+                                                
                                                 slinsidedict["perc_identity"] = float(format(
                                                     float(slinsidedict["max_identities"]*100) / len(slinsidedict["query"]), '.2f'))
+                                                slinsidedict["perc_positive"] = float(format(
+                                                    float(slinsidedict["max_positives"]*100) / len(slinsidedict["query"]), '.2f'))
 
                                                 loose["{}|hsp_num:{}".format(
                                                     hit_id.decode(), init)] = slinsidedict

@@ -90,7 +90,8 @@ class ConvertJsonToTSV(object):
                                  "Hit_Start",
                                  "Hit_End",
                                  "Antibiotic",
-                                 "AST_Source"])
+                                 "AST_Source",
+                                 "Best_Positives"])
 
                 if os.path.isfile(self.filepath):
                     with open(self.filepath) as rgi_file:
@@ -269,6 +270,8 @@ class ConvertJsonToTSV(object):
                                                                  ]["ARO_name"],
                                                    rgi_data[hsp][ordered[0]
                                                                  ]["perc_identity"],
+												   rgi_data[hsp][ordered[0]
+                                                                 ]["perc_positive"],
                                                    rgi_data[hsp][ordered[0]
                                                                  ]["ARO_accession"],
                                                    rgi_data[hsp][ordered[0]
@@ -355,6 +358,8 @@ class ConvertJsonToTSV(object):
                                                                  ]["ARO_name"],
                                                    rgi_data[hsp][ordered[0]
                                                                  ]["perc_identity"],
+												   rgi_data[hsp][ordered[0]
+                                                                 ]["perc_positive"],
                                                    rgi_data[hsp][ordered[0]
                                                                  ]["ARO_accession"],
                                                    rgi_data[hsp][ordered[0]
@@ -417,6 +422,7 @@ class ConvertJsonToTSV(object):
         h["Percentage Length of Reference Sequence"] = "Percentage Length of Reference Sequence"
         h["ID"] = "HSP identifier (internal to RGI)"
         h["Model_ID"] = "CARD detection model id"
+        h["Best_Positives"] = "Percent positive of match to top hit in CARD"
 
         print("\n")
         print("COLUMN", "\t\t\t", "HELP_MESSAGE")
