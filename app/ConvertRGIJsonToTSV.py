@@ -270,8 +270,6 @@ class ConvertJsonToTSV(object):
                                                                  ]["ARO_name"],
                                                    rgi_data[hsp][ordered[0]
                                                                  ]["perc_identity"],
-												   rgi_data[hsp][ordered[0]
-                                                                 ]["perc_positive"],
                                                    rgi_data[hsp][ordered[0]
                                                                  ]["ARO_accession"],
                                                    rgi_data[hsp][ordered[0]
@@ -302,7 +300,9 @@ class ConvertJsonToTSV(object):
                                                    "; ".join(rgi_data[hsp][ordered[0]]["ARO_category"][x]["category_aro_name"] for x in rgi_data[hsp][ordered[0]]["ARO_category"]
                                                              if rgi_data[hsp][ordered[0]]["ARO_category"][x]["category_aro_class_name"] == 'Antibiotic'),
                                                    rgi_data[hsp][ordered[0]
-                                                                 ]["ast_source"]
+                                                                 ]["ast_source"],
+												   rgi_data[hsp][ordered[0]
+                                                                 ]["perc_positive"]
                                                    ]
                             for key, value in match_dict.items():
                                 writer.writerow(value)
@@ -358,8 +358,6 @@ class ConvertJsonToTSV(object):
                                                                  ]["ARO_name"],
                                                    rgi_data[hsp][ordered[0]
                                                                  ]["perc_identity"],
-												   rgi_data[hsp][ordered[0]
-                                                                 ]["perc_positive"],
                                                    rgi_data[hsp][ordered[0]
                                                                  ]["ARO_accession"],
                                                    rgi_data[hsp][ordered[0]
@@ -391,7 +389,9 @@ class ConvertJsonToTSV(object):
                                                    "; ".join(rgi_data[hsp][ordered[0]]["ARO_category"][x]["category_aro_name"] for x in rgi_data[hsp][ordered[0]]["ARO_category"]
                                                              if rgi_data[hsp][ordered[0]]["ARO_category"][x]["category_aro_class_name"] == 'Antibiotic'),
                                                    rgi_data[hsp][ordered[0]
-                                                                 ]["ast_source"]
+                                                                 ]["ast_source"],
+												   rgi_data[hsp][ordered[0]
+                                                                 ]["perc_positive"]
                                                    ]
 
                             for key, value in match_dict.items():
