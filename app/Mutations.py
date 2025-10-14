@@ -61,27 +61,8 @@ class MutationsModule(BaseModel):
             chan = eachs["change"]
             # print("normal:", chan)
 
-            # wildtype
-            # wildtype = str(
-            #     hsp.sbjct[pos - hsp.sbjct_start + self.find_num_dash(hsp.sbjct, (pos-hsp.sbjct_start))])
-
-            # check for Var
-            if str(chan) == "Var":
-                # update to the change
-                chan = str(
-                    hsp_query[pos - hsp_sbjct_start + self.find_num_dash(hsp_sbjct, (pos-hsp_sbjct_start))])
-                # update eachs
-                eachs["change"] = chan
-                # print("var:", chan)
-
             if hsp_sbjct_start < pos and (hsp_sbjct_start + real_sbjct_length) > pos:
                 orf_protein_sequence = ""
-
-                # if predicted_genes_dict:
-                #     if orf_info.strip() in predicted_genes_dict.keys():
-                #         orf_protein_sequence = str(Seq(predicted_genes_dict[orf_info.decode()], generic_dna).translate(table=11)).strip("*")
-                #     else:
-                #         orf_protein_sequence = str(Seq(predicted_genes_dict[orf_info.decode()[:orf_info.decode().index(' # ')]], generic_dna).translate(table=11)).strip("*")
 
                 if predicted_genes_dict_protein:
                     if orf_info.strip() in predicted_genes_dict_protein.keys():
@@ -105,31 +86,42 @@ class MutationsModule(BaseModel):
                     srv_output["eachs"] = eachs
                     srv_output["orf_protein_sequence"] = orf_protein_sequence
                     srv_output["chan"] = chan 
-                   # print(orf_protein_sequence)
+                # print(orf_protein_sequence)
 
-                # logger.info("mutation | Model:"+str(model_id) + " | pos:" +str(pos) +" | change: "+str(hsp.query[pos - hsp.sbjct_start + \
-                # 			self.find_num_dash(hsp.sbjct, (pos-hsp.sbjct_start))]) + "=" + str(chan) + " AND wildtype: " + str(hsp.sbjct[pos - hsp.sbjct_start \
-                # 			+self.find_num_dash(hsp.sbjct, (pos-hsp.sbjct_start))]) + "=" + str(ori))
+                # wildtype
+                wildtype = str(
+                    hsp_sbjct[pos - hsp_sbjct_start + self.find_num_dash(hsp_sbjct, (pos-hsp_sbjct_start))])
+                srv_output["wildtype"] = wildtype
 
                 # Report ONLY if the SNPs are present
                 qry = int(pos) - hsp_sbjct_start + self.find_num_dash(hsp_sbjct, (int(pos) - hsp_sbjct_start))
                 srv_output["qry"] = qry
-
-                sbj = int(pos) - hsp_sbjct_start + self.find_num_dash(hsp_sbjct, (int(pos) - hsp_sbjct_start))
-                # print(hsp_query[qry], "+", chan, ":", qry, ">", sbj)
+            
+                # check for Var
+                if str(chan) == "Var":
+                    # update to the change
+                    chan = str(
+                        hsp_query[pos - hsp_sbjct_start + self.find_num_dash(hsp_sbjct, (pos-hsp_sbjct_start))])
+                    
+                    if hsp_query[qry] == chan and chan != wildtype:
+                        # update eachs
+                        eachs = chan
+                    else:
+                        # change same as wildtype, don't report
+                        chan = ""
+                    # print("var:", chan)
 
                 if hsp_query[qry] == chan: # if the amino acid at our specific position in the query sequence is the same as the NEW aa (same SNP change has occured)
                     # print(eachs)
                     query_snps = {}
-                    # logger.debug("mutation | Model:"+str(model_id) + " | pos:" +str(pos) +" | change: "+str(hsp.query[pos - hsp.sbjct_start + \
-                    # 		self.find_num_dash(hsp.sbjct, (pos-hsp.sbjct_start))]) + "=" + str(chan) + " AND wildtype: " + str(hsp.sbjct[pos - hsp.sbjct_start \
-                    # 		+self.find_num_dash(hsp.sbjct, (pos-hsp.sbjct_start))]) + "=" + str(ori))
 
                     # get position of mutation in the query sequence
-                    d = int(pos) - hsp_sbjct_start - self.find_num_dash(hsp_query, (int(pos) - hsp_sbjct_start))
+                    d = int(
+                        pos) - hsp_sbjct_start - self.find_num_dash(hsp_query, (int(pos) - hsp_sbjct_start))
                     # print(pos, hsp_sbjct_start, hsp_query)
                     # print(d, pos, hsp_query[qry], qry)
-                    query_snps = {"original": ori, "change": chan ,"position": d+1}
+                    query_snps = {
+                        "original": ori, "change": chan ,"position": d+1}
                     # print(query_snps)
                     # logger.debug("query_snp on frame {} {}".format(hsp.frame, json.dumps(query_snps, indent=2)))
 

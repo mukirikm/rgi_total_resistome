@@ -130,17 +130,17 @@ class Variant(MutationsModule):
 						else:
 							c += 1
 					orf_from = orf_info[c:]
-
-                    model_type_id = self.extract_nth_bar(align_title, 0)
-                    space_pos = align_title.index(' ')
-                    hit_id = align_title[0:space_pos]
-                    hit_id = hit_id.encode('ascii', 'replace')
-                    model_descrpt = align_title[align_title.index(' ')+1:]
-                    underscore_in_MD = model_descrpt.index('_')
-                    model_id = model_descrpt[0:underscore_in_MD]
-                    seq_in_model = model_descrpt[underscore_in_MD +
+					
+					model_type_id = self.extract_nth_bar(align_title, 0)
+					space_pos = align_title.index(' ')
+					hit_id = align_title[0:space_pos]
+					hit_id = hit_id.encode('ascii', 'replace')
+					model_descrpt = align_title[align_title.index(' ')+1:]
+					underscore_in_MD = model_descrpt.index('_')
+					model_id = model_descrpt[0:underscore_in_MD]
+					seq_in_model = model_descrpt[underscore_in_MD +
                                                  1: model_descrpt.index(' ')]
-                    pass_value = self.extract_nth_bar(alignment.title, 1)
+					pass_value = self.extract_nth_bar(alignment.title, 1)
 					model_type_id = self.extract_nth_bar(align_title, 0)
 					# print(model_type_id)
 					# logger.info("model_type_id: {} ".format(model_type_id))
@@ -210,7 +210,7 @@ class Variant(MutationsModule):
 												sinsidedict["type_match"] = "Strict"
 												if "eachs" in loaded_snp:
 													sinsidedict["snp"] = loaded_snp["eachs"]
-                                                    sinsidedict["ast_source"] = self.get_ast_source(
+													sinsidedict["ast_source"] = self.get_ast_source(
 														json_data[model_id], eachs)
 													sinsidedict["query_snp"] = loaded_snp["query_snps"]
 													sinsidedict["orf_strand"] = self.extract_nth_bar(orf_info.decode(), 0)
@@ -219,7 +219,7 @@ class Variant(MutationsModule):
 													sinsidedict["orf_from"] = self.trim_after_last_underscore(orf_from.decode())
 												else:
 													sinsidedict["snp"] = "n/a"
-                                                    sinsidedict["ast_source"] = self.get_ast_source(
+													sinsidedict["ast_source"] = self.get_ast_source(
 														json_data[model_id], eachs)
 													sinsidedict["query_snp"] = "n/a"
 													sinsidedict["orf_strand"] = "n/a"
@@ -318,7 +318,7 @@ class Variant(MutationsModule):
 												slinsidedict["type_match"] = "Loose"
 												if "eachs" in loaded_snp:
 													slinsidedict["snp"] = loaded_snp["eachs"]
-                                                    slinsidedict["ast_source"] = self.get_ast_source(
+													slinsidedict["ast_source"] = self.get_ast_source(
 														json_data[model_id], eachs)
 													slinsidedict["query_snp"] = loaded_snp["query_snps"]
 													slinsidedict["orf_strand"] = self.extract_nth_bar(orf_info.decode(), 0)
@@ -327,7 +327,7 @@ class Variant(MutationsModule):
 													slinsidedict["orf_from"] = self.trim_after_last_underscore(orf_from.decode())
 												else:
 													slinsidedict["snp"] = "n/a"
-						                            slinsidedict["ast_source"] = self.get_ast_source(
+													slinsidedict["ast_source"] = self.get_ast_source(
 														json_data[model_id], eachs)
 													slinsidedict["query_snp"] = "n/a"
 													slinsidedict["orf_strand"] = "n/a"

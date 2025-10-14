@@ -241,17 +241,17 @@ class ConvertJsonToTSV(object):
                                                 OrderedDict.fromkeys(temp3))
                                             other_snps = ', '.join(temp3)
 
-									## frameshifts
-									for x in rgi_data[hsp].values():
-										# print(x)
-										if "curated_fs" in x.keys() and x["curated_fs"] != "n/a":
-											curated_frameshifts = ', '.join(x["curated_fs"])
-										else:
-											curated_frameshifts = "n/a"
-										if "denovo_fs" in x.keys() and x["denovo_fs"] != "n/a":
-											denovo_frameshifts = ', '.join(x["denovo_fs"])
-										else:
-											denovo_frameshifts = "n/a"
+                                        ## frameshifts
+                                        for x in rgi_data[hsp].values():
+                                            # print(x)
+                                            if "curated_fs" in x.keys() and x["curated_fs"] != "n/a":
+                                                curated_frameshifts = ', '.join(x["curated_fs"])
+                                            else:
+                                                curated_frameshifts = "n/a"
+                                            if "denovo_fs" in x.keys() and x["denovo_fs"] != "n/a":
+                                                denovo_frameshifts = ', '.join(x["denovo_fs"])
+                                            else:
+                                                denovo_frameshifts = "n/a"
 									
                                     else:
                                         best_snps = "n/a"
@@ -360,17 +360,17 @@ class ConvertJsonToTSV(object):
                                         best_snps = "n/a"
                                         other_snps = "n/a"
                                         
-									## frameshifts
-									for x in rgi_data[hsp].values():
-										# print(x)
-										if "curated_fs" in x.keys() and x["curated_fs"] != "n/a":
-											curated_frameshifts = ', '.join(x["curated_fs"])
-										else:
-											curated_frameshifts = "n/a"
-										if "denovo_fs" in x.keys() and x["denovo_fs"] != "n/a":
-											denovo_frameshifts = ', '.join(x["denovo_fs"])
-										else:
-											denovo_frameshifts = "n/a"
+                                        ## frameshifts
+                                        for x in rgi_data[hsp].values():
+                                            # print(x)
+                                            if "curated_fs" in x.keys() and x["curated_fs"] != "n/a":
+                                                curated_frameshifts = ', '.join(x["curated_fs"])
+                                            else:
+                                                curated_frameshifts = "n/a"
+                                            if "denovo_fs" in x.keys() and x["denovo_fs"] != "n/a":
+                                                denovo_frameshifts = ', '.join(x["denovo_fs"])
+                                            else:
+                                                denovo_frameshifts = "n/a"
                                                        
                                 elif rgi_data[hsp][hit]["model_type_id"] == 40292:
                                     best_snps = "n/a"
@@ -442,8 +442,8 @@ class ConvertJsonToTSV(object):
         h["Model_type"] = "CARD detection model type"
         h["SNPs_in_Best_Hit_ARO"] = "Mutations observed in the ARO term of top hit in CARD (if applicable)"
         h["Other_SNPs"] = "Mutations observed in ARO terms of other hits indicated by model id (if applicable)"
-		h["Curated_Frameshifts"] = "CARD-curated frameshifts observed in the ARO term of top hit in CARD (if applicable)"
-		h["Denovo_Frameshifts"] = "Newly discovered frameshifts (not curated in CARD) observed in the ARO term of top hit in CARD (if applicable"
+        h["Curated_Frameshifts"] = "CARD-curated frameshifts observed in the ARO term of top hit in CARD (if applicable)"
+        h["Denovo_Frameshifts"] = "Newly discovered frameshifts (not curated in CARD) observed in the ARO term of top hit in CARD (if applicable"
         h["Drug Class"] = "ARO Categorization"
         h["Resistance Mechanism"] = "ARO Categorization"
         h["AMR Gene Family"] = "ARO Categorization"
