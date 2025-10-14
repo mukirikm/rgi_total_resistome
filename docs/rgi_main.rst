@@ -76,7 +76,6 @@ Curation at CARD is routinely ahead of RGI software development, so not all para
 |    frameshift mutation - Ter                             | 1                                              |no                   |
 +----------------------------------------------------------+------------------------------------------------+---------------------+
 
-
 Lastly, analyzing metagenomic assemblies or merged metagenomic reads using RGI main is a computationally intensive approach, since each merged read or contig FASTA set may contain partial ORFs, requiring RGI to perform large amounts of BLAST/DIAMOND analyses against CARD reference proteins. However, this approach does (1) allow analysis of metagenomic sequences in protein space, overcoming issues of high-stringency read mapping relative to nucleotide reference databases (see below), and (2) allow inclusion of `protein variant models <https://card.mcmaster.ca/ontology/40293>`_, `rRNA mutation models <https://card.mcmaster.ca/ontology/40295>`_, and `protein over-expression models <https://card.mcmaster.ca/ontology/41091>`_ when annotating the resistome (as outlined below, RGI bwt's read mapping algorithms do not support models that require screening for mutations).
 
  > `What RGI settings are best for a Metagenome-Assembled Genome (MAG)? <https://github.com/arpcard/FAQ#rgi-faqs>`_
@@ -321,6 +320,11 @@ RGI main Tab-Delimited Output Details
 +----------------------------------------------------------+------------------------------------------------+
 |    Antibiotic                                            | ARO Categorization                             |
 +----------------------------------------------------------+------------------------------------------------+
+|    AST_Source                                            | Source of antibiotic susceptibility data       |
+|                                                          | (mutation-associated resistance only)          |
++----------------------------------------------------------+------------------------------------------------+
+
+AST_Source: **Curated-R**: mutation data hand curated from the scientific literature, evaluated as conferring resistance (R). **CRyPTIC**: mutation data acquired from the `CRyPTIC catalog <https://pubmed.ncbi.nlm.nih.gov/35944069/>`_, evaluated as resistant (R), susceptible (S), or undetermined (U). **ReSeqTB**: mutation data acquired from the `ReSeqTB catalog <https://pubmed.ncbi.nlm.nih.gov/30337678/>`_, evaluated as conferring resistance (Minimal, Moderate, High), not conferring resistance (None), or Indeterminate. **WHO**: mutation data acquired from the `WHO 2023 catalog <https://www.who.int/publications/i/item/9789240082410>`_, evaluated as resistant (R), susceptible (S), or undetermined (U).
 
 Generating Heat Maps of RGI main Results
 ````````````````````````````````````````

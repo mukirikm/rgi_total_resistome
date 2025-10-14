@@ -131,6 +131,16 @@ class Variant(MutationsModule):
 							c += 1
 					orf_from = orf_info[c:]
 
+                    model_type_id = self.extract_nth_bar(align_title, 0)
+                    space_pos = align_title.index(' ')
+                    hit_id = align_title[0:space_pos]
+                    hit_id = hit_id.encode('ascii', 'replace')
+                    model_descrpt = align_title[align_title.index(' ')+1:]
+                    underscore_in_MD = model_descrpt.index('_')
+                    model_id = model_descrpt[0:underscore_in_MD]
+                    seq_in_model = model_descrpt[underscore_in_MD +
+                                                 1: model_descrpt.index(' ')]
+                    pass_value = self.extract_nth_bar(alignment.title, 1)
 					model_type_id = self.extract_nth_bar(align_title, 0)
 					# print(model_type_id)
 					# logger.info("model_type_id: {} ".format(model_type_id))
@@ -200,13 +210,17 @@ class Variant(MutationsModule):
 												sinsidedict["type_match"] = "Strict"
 												if "eachs" in loaded_snp:
 													sinsidedict["snp"] = loaded_snp["eachs"]
+                                                    sinsidedict["ast_source"] = self.get_ast_source(
+														json_data[model_id], eachs)
 													sinsidedict["query_snp"] = loaded_snp["query_snps"]
 													sinsidedict["orf_strand"] = self.extract_nth_bar(orf_info.decode(), 0)
 													sinsidedict["orf_start"] = self.extract_nth_bar(orf_info.decode(), 1)
 													sinsidedict["orf_end"] = self.extract_nth_bar(orf_info.decode(), 2)
-													sinsidedict["orf_from"] = orf_from.decode()
+													sinsidedict["orf_from"] = self.trim_after_last_underscore(orf_from.decode())
 												else:
 													sinsidedict["snp"] = "n/a"
+                                                    sinsidedict["ast_source"] = self.get_ast_source(
+														json_data[model_id], eachs)
 													sinsidedict["query_snp"] = "n/a"
 													sinsidedict["orf_strand"] = "n/a"
 													sinsidedict["orf_start"] = "n/a"
@@ -254,8 +268,8 @@ class Variant(MutationsModule):
 														orf_info.decode(), 1)
 													sinsidedict["orf_end"] = self.extract_nth_hash(
 														orf_info.decode(), 2)
-													sinsidedict["orf_from"] = self.extract_nth_hash(
-														orf_info.decode(), 0)
+													sinsidedict["orf_from"] = self.trim_after_last_underscore(self.extract_nth_hash(
+														orf_info.decode(), 0))
 													sinsidedict["hit_start"] = (
 														hsp.sbjct_start-1)*3
 													sinsidedict["hit_end"] = (
@@ -304,13 +318,17 @@ class Variant(MutationsModule):
 												slinsidedict["type_match"] = "Loose"
 												if "eachs" in loaded_snp:
 													slinsidedict["snp"] = loaded_snp["eachs"]
+                                                    slinsidedict["ast_source"] = self.get_ast_source(
+														json_data[model_id], eachs)
 													slinsidedict["query_snp"] = loaded_snp["query_snps"]
 													slinsidedict["orf_strand"] = self.extract_nth_bar(orf_info.decode(), 0)
 													slinsidedict["orf_start"] = self.extract_nth_bar(orf_info.decode(), 1)
 													slinsidedict["orf_end"] = self.extract_nth_bar(orf_info.decode(), 2)
-													slinsidedict["orf_from"] = orf_from.decode()
+													slinsidedict["orf_from"] = self.trim_after_last_underscore(orf_from.decode())
 												else:
 													slinsidedict["snp"] = "n/a"
+						                            slinsidedict["ast_source"] = self.get_ast_source(
+														json_data[model_id], eachs)
 													slinsidedict["query_snp"] = "n/a"
 													slinsidedict["orf_strand"] = "n/a"
 													slinsidedict["orf_start"] = "n/a"
@@ -358,8 +376,8 @@ class Variant(MutationsModule):
 														orf_info.decode(), 1)
 													slinsidedict["orf_end"] = self.extract_nth_hash(
 														orf_info.decode(), 2)
-													slinsidedict["orf_from"] = self.extract_nth_hash(
-														orf_info.decode(), 0)
+													slinsidedict["orf_from"] = self.trim_after_last_underscore(self.extract_nth_hash(
+														orf_info.decode(), 0))
 													slinsidedict["hit_start"] = (
 														hsp.sbjct_start-1)*3
 													slinsidedict["hit_end"] = (
