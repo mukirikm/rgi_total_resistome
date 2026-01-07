@@ -156,16 +156,17 @@ class Database(object):
 										"Please let the CARD Admins know! Email: card@mcmaster.ca")
 									
 							try:
-								fsList = [j[i]['model_param']['40494']['param_value'][k] for k in j[i]['model_param']['40494']['param_value']]
+								fsList = [j[i]['model_param']['40494']['param_value'][k] 
+				  							for k in j[i]['model_param']['40494']['param_value']]
+								# print(fsList)
 								"""
 								FOR TESTING - KARYN
 								"""
 								# print("frameshifts found:", fsList)
 							except Exception as e:
-								pass
-								# logger.warning("No frameshift for model (%s, %s). RGI will omit this model and keep running." \
-								# 	% (j[i]['model_id'], j[i]['model_name']))
-								# logger.info("Please let the CARD Admins know! Email: card@mcmaster.ca")
+								logger.warning("No frameshift for model (%s, %s). RGI will omit this model and keep running." \
+									% (j[i]['model_id'], j[i]['model_name']))
+								logger.info("Please let the CARD Admins know! Email: card@mcmaster.ca")
 							
 							try:
 								variant_db = ""

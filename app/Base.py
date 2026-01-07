@@ -270,6 +270,10 @@ class BaseModel(object):
         """
 
         nudged = False
+        # print("length of perf:", len(perfect))
+        # print("length of strict:", len(strict))
+        # print("length of loose:", len(loose))
+
         if len(perfect) == 0 and len(strict) == 0 and len(loose) > 0:
             if include_nudge is True:
                 nudged, loose = self.nudge_loose_to_strict(loose)
@@ -562,6 +566,7 @@ class BaseModel(object):
             loose (dict): dictionary containing loose or strict hits
         """
         nudged = False
+        # print(loose)
         # check if there are any loose hits that might be strict
         for i in loose:
             if 95 <= int(loose[i]["perc_identity"]) <= 100:

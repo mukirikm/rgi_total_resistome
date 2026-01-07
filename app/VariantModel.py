@@ -1,6 +1,7 @@
 from app.Mutations import MutationsModule
 from app.settings import *
 from Bio.Blast import NCBIXML
+import traceback
 
 class Variant(MutationsModule):
 	"""Class for protein variant searches."""
@@ -57,21 +58,19 @@ class Variant(MutationsModule):
 		with open(os.path.join(self.data,"card.json")) as json_file:
 			json_data = json.load(json_file)
 
-		# if self.dna_xml_file == None:
-		# 	pass
-		# else:
 		try:
 			with open(self.dna_xml_file, 'r') as blastn_result_handle:
-				blastn_records = NCBIXML.parse(blastn_result_handle)	
+				blastn_records = NCBIXML.parse(blastn_result_handle)
 				for blastn_record in blastn_records:
 					for alignment in blastn_record.alignments:
 						align_title = alignment.title
-
 						model_type_id = self.extract_nth_bar(align_title, 0)
 						# logger.info("model_type_id: {} ".format(model_type_id))
 						space_pos = align_title.index(' ')
 						hit_id = align_title[0:space_pos]
 						hit_id = hit_id.encode('ascii','replace')
+						hit_def_blastn = self.extract_nth_bar(align_title, -1).split(" ")[1]
+						# print(hit_def_blastn)
 						# print("debug 2:", hit_id)
 
 						model_descrpt = align_title[align_title.index(' ')+1:]
@@ -80,23 +79,27 @@ class Variant(MutationsModule):
 						seq_in_model = model_descrpt[underscore_in_MD+1: model_descrpt.index(' ')]
 						pass_value = self.extract_nth_bar(alignment.title, 1)
 						# logger.info("pass_value: {}".format(pass_value))
-
-						if model_type_id == 40293:
+						
+						if model_type_id == 40293 and "Frameshift: None" not in align_title:
 							try:
 								true_pass_evalue = float(pass_value)
 							except ValueError:
 								true_pass_evalue = float(
 									pass_value[0:pass_value.find(' ')])
 
-							logger.info("mutation | model_type_id = " + str(align_title))
+							# logger.info("mutation | model_type_id = " + str(align_title))
 							init = 0
 							fsl = []
 							temp = ""
 							
 							evalue_fs = self.extract_nth_bar(align_title, 2)
 							fsl = evalue_fs.split(',')
+							# print(fsl)
 							
 							for hsp in alignment.hsps:
+								# print("FS in alignment title\n")
+								# print(align_title) ## this'll help debugging if you have two frameshift outputs that look the same (same align title, but HSPs differ)
+								# print(hsp, "\n")
 								query_seq =  hsp.query.replace('-', '')
 								real_query_length = len(query_seq)
 								sbjct_seq = hsp.sbjct.replace('-', '')
@@ -104,20 +107,24 @@ class Variant(MutationsModule):
 
 								card_dna_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["dna_sequence"]["sequence"]
 
-								if "Frameshift" in align_title:	
-									self.frameshift(fsl, hsp.query, hsp.sbjct, card_dna_ref)
+								self.frameshift(fsl, hsp.query, hsp.sbjct, card_dna_ref, hit_def_blastn)
+
 		except FileNotFoundError as e:
 			logger.info("Skipping frameshift search...")
 			pass
 
 		with open(self.xml_file, 'r') as result_handle:
 			blast_records = NCBIXML.parse(result_handle)
+			# print(blast_records)
 			for blast_record in blast_records:
 				perfect = {}
 				strict = {}
 				loose = {}
 				for alignment in blast_record.alignments:
 					align_title = alignment.title
+					# print("SNV in alignment title\n")
+					# print(align_title)
+					# print(hsp, "\n")
 					orf_info = blast_record.query.encode('ascii','replace')
 					c = 0
 					barc = 0
@@ -147,7 +154,7 @@ class Variant(MutationsModule):
 					space_pos = align_title.index(' ')
 					hit_id = align_title[0:space_pos]
 					hit_id = hit_id.encode('ascii','replace')
-					# print("debug 2:", hit_id)
+					hit_def_blastp = self.extract_nth_bar(align_title, -1).split(" ")[1]
 
 					model_descrpt = align_title[align_title.index(' ')+1:]
 					underscore_in_MD = model_descrpt.index('_')
@@ -163,7 +170,7 @@ class Variant(MutationsModule):
 							true_pass_evalue = float(
 								pass_value[0:pass_value.find(' ')])
 
-						logger.info("mutation | model_type_id = " + str(align_title))
+						# logger.info("mutation | model_type_id = " + str(align_title))
 						init = 0
 						snpl = []
 						temp = ""
@@ -190,42 +197,51 @@ class Variant(MutationsModule):
 							# print(orf_from.decode())
 
 							self.single_resistance_variant(
-								predicted_genes_dict_protein, submitted_proteins_dict, snpl, real_sbjct_length, hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info
+								predicted_genes_dict_protein, submitted_proteins_dict, snpl, real_sbjct_length, 
+								hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info, hit_def_blastp
 								)
 							
-							mm_output = self.consolidate_mutations()
-							# print(mm_output)
+							mm_output = self.consolidate_mutations(self.input_type)
+							# print("mm output:\n", mm_output, "\n")
 							# for s in mm_output:
-							# 	print(s)
-							
+							# 	print(s["eachs"])
+							# 	print(float(format(float(hsp.identities*100) / len(hsp.query), '.2f')))
+
 							if mm_output != None:
 								for loaded_snp in mm_output:
-									if len(loaded_snp) > 0: ## to weed out SNPs without ORFs or qry entries
-										# print("loaded snp:", loaded_snp)
+									if loaded_snp != None:
+										# print("loaded snp\n:", loaded_snp, "\n")
+										# print("eachs:", loaded_snp["eachs"], "hsp bits:", hsp.bits, "pass bitscore cutoff:", true_pass_evalue)
 										try:
+											# print("eachs:", loaded_snp["eachs"], "hsp bits:", hsp.bits, "pass bitscore cutoff:", true_pass_evalue)
 											# print("debug 2:", hit_id, ",", hsp.query[loaded_snp["qry"]], ",", loaded_snp["qry"], ",", loaded_snp["chan"])
 											if float(hsp.bits) >= float(true_pass_evalue): # if the hit passes its bitscore cut off (but isn't perfect)
-												# print("hsp bits:", hsp.bits)
+												""" Strict hits """
+												# print("eachs:", loaded_snp["eachs"], "hsp bits:", hsp.bits, "pass bitscore cutoff:", true_pass_evalue)
+												# print(loaded_snp["eachs"])
 												sinsidedict = {}
 												sinsidedict["type_match"] = "Strict"
 												if "eachs" in loaded_snp:
 													sinsidedict["snp"] = loaded_snp["eachs"]
 													sinsidedict["ast_source"] = self.get_ast_source(
-														json_data[model_id], eachs)
-													sinsidedict["query_snp"] = loaded_snp["query_snps"]
+														json_data[model_id], loaded_snp["eachs"])
+													if "query_snps" in loaded_snp:
+														sinsidedict["query_snp"] = loaded_snp["query_snps"]
+													else:
+														sinsidedict["query_snp"] = "n/a"
 													sinsidedict["orf_strand"] = self.extract_nth_bar(orf_info.decode(), 0)
 													sinsidedict["orf_start"] = self.extract_nth_bar(orf_info.decode(), 1)
 													sinsidedict["orf_end"] = self.extract_nth_bar(orf_info.decode(), 2)
 													sinsidedict["orf_from"] = self.trim_after_last_underscore(orf_from.decode())
 												else:
 													sinsidedict["snp"] = "n/a"
-													sinsidedict["ast_source"] = self.get_ast_source(
-														json_data[model_id], eachs)
+													sinsidedict["ast_source"] = "n/a"
 													sinsidedict["query_snp"] = "n/a"
 													sinsidedict["orf_strand"] = "n/a"
 													sinsidedict["orf_start"] = "n/a"
 													sinsidedict["orf_end"] = "n/a"
 													sinsidedict["orf_from"] = "n/a"
+													
 												if "curated_fs" in loaded_snp:
 													sinsidedict["curated_fs"] = loaded_snp["curated_fs"]
 												else:
@@ -234,6 +250,7 @@ class Variant(MutationsModule):
 													sinsidedict["denovo_fs"] = loaded_snp["denovo_fs"]
 												else:
 													sinsidedict["denovo_fs"] = "n/a"
+													
 												sinsidedict["model_name"] = json_data[model_id]["model_name"]
 												sinsidedict["model_type"] = json_data[model_id]["model_type"]
 												sinsidedict["model_type_id"] = model_type_id
@@ -282,7 +299,6 @@ class Variant(MutationsModule):
 															sinsidedict["orf_prot_sequence"] = loaded_snp["orf_protein_sequence"]
 														else:
 															sinsidedict["orf_prot_sequence"] = "n/a"
-														# print("debug 1:", value)
 
 													else:
 														sinsidedict["orf_dna_sequence"] = ""
@@ -297,7 +313,6 @@ class Variant(MutationsModule):
 														sinsidedict["orf_prot_sequence"] = loaded_snp["orf_protein_sequence"]
 													else:
 														sinsidedict["orf_prot_sequence"] = "n/a"
-													# print("debug 2:", value)
 
 													sinsidedict["hit_start"] = ""
 													sinsidedict["hit_end"] = ""
@@ -313,27 +328,31 @@ class Variant(MutationsModule):
 												init += 1
 
 											else:
-												# print("hsp bits:", hsp.bits)
+												""" Loose hits """
+												# print(loaded_snp["eachs"])
 												slinsidedict = {}
 												slinsidedict["type_match"] = "Loose"
 												if "eachs" in loaded_snp:
 													slinsidedict["snp"] = loaded_snp["eachs"]
 													slinsidedict["ast_source"] = self.get_ast_source(
-														json_data[model_id], eachs)
-													slinsidedict["query_snp"] = loaded_snp["query_snps"]
+														json_data[model_id], loaded_snp["eachs"])
+													if "query_snps" in loaded_snp:
+														slinsidedict["query_snp"] = loaded_snp["query_snps"]
+													else:
+														slinsidedict["query_snp"] = "n/a"
 													slinsidedict["orf_strand"] = self.extract_nth_bar(orf_info.decode(), 0)
 													slinsidedict["orf_start"] = self.extract_nth_bar(orf_info.decode(), 1)
 													slinsidedict["orf_end"] = self.extract_nth_bar(orf_info.decode(), 2)
 													slinsidedict["orf_from"] = self.trim_after_last_underscore(orf_from.decode())
 												else:
 													slinsidedict["snp"] = "n/a"
-													slinsidedict["ast_source"] = self.get_ast_source(
-														json_data[model_id], eachs)
+													slinsidedict["ast_source"] = "n/a"
 													slinsidedict["query_snp"] = "n/a"
 													slinsidedict["orf_strand"] = "n/a"
 													slinsidedict["orf_start"] = "n/a"
 													slinsidedict["orf_end"] = "n/a"
 													slinsidedict["orf_from"] = "n/a"
+													
 												if "curated_fs" in loaded_snp:
 													slinsidedict["curated_fs"] = loaded_snp["curated_fs"]
 												else:
@@ -342,6 +361,7 @@ class Variant(MutationsModule):
 													slinsidedict["denovo_fs"] = loaded_snp["denovo_fs"]
 												else:
 													slinsidedict["denovo_fs"] = "n/a"
+													
 												slinsidedict["model_name"] = json_data[model_id]["model_name"]
 												slinsidedict["model_type"] = json_data[model_id]["model_type"]
 												slinsidedict["model_type_id"] = model_type_id
@@ -390,7 +410,6 @@ class Variant(MutationsModule):
 															slinsidedict["orf_prot_sequence"] = loaded_snp["orf_protein_sequence"]
 														else:
 															slinsidedict["orf_prot_sequence"] = "n/a"
-														# print("debug 3:", value)
 
 													else:
 														slinsidedict["orf_dna_sequence"] = ""
@@ -404,7 +423,6 @@ class Variant(MutationsModule):
 														slinsidedict["orf_prot_sequence"] = loaded_snp["orf_protein_sequence"]
 													else:
 														slinsidedict["orf_prot_sequence"] = "n/a"
-													# print("debug 4:", value)
 
 													# print("debug:", slinsidedict["query_start"], slinsidedict["query_end"], slinsidedict["query_from"])
 													slinsidedict["hit_start"] = ""
@@ -422,12 +440,13 @@ class Variant(MutationsModule):
 											# print(slinsidedict)
 
 										except Exception as e:
+											traceback.print_exc() # for karyn
 											logger.warning("Exception : {} -> {} -> Model({})".format(type(e), e, model_id))
 											logger.warning("{} ---> hsp.bits: {} {} ? {}".format(json_data[model_id]["model_name"],hsp.bits,type(hsp.bits), type(true_pass_evalue)))
-									# else:
-									# 	print(hsp.query[loaded_snp["qry"]], "+", loaded_snp["chan"])
+							else:
+								pass
+				blastResults = self.results(
+					blastResults, blast_record.query, perfect, strict , loose, self.include_nudge)
+				# print(loose)
 
-				blastResults = self.results(blastResults, blast_record.query, perfect, strict , loose, self.include_nudge)
-				# print(blastResults)
-
-		return blastResults
+			return blastResults

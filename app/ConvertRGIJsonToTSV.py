@@ -76,8 +76,6 @@ class ConvertJsonToTSV(object):
                                  "Model_type",
                                  "SNPs_in_Best_Hit_ARO",
                                  "Other_SNPs",
-								"Curated_Frameshifts",
-								"De_novo_Frameshifts",
                                  "Drug Class",
                                  "Resistance Mechanism",
                                  "AMR Gene Family",
@@ -92,7 +90,10 @@ class ConvertJsonToTSV(object):
                                  "Hit_Start",
                                  "Hit_End",
                                  "Antibiotic",
-                                 "AST_Source"])
+                                 "AST_Source",
+                                 "Curated_Frameshifts",
+							     "De_novo_Frameshifts"
+                                ])
 
                 if os.path.isfile(self.filepath):
                     with open(self.filepath) as rgi_file:
@@ -101,6 +102,8 @@ class ConvertJsonToTSV(object):
                         del rgi_data["_metadata"]
                     except:
                         pass
+                    
+                    # print(rgi_data)
 
                     for hsp in rgi_data:
                         order_perfect = []
@@ -113,6 +116,8 @@ class ConvertJsonToTSV(object):
                         temp3 = []
                         best_snps = ""
                         other_snps = ""
+                        curated_frameshifts = ""
+                        denovo_frameshifts = ""
 
                         nudged = ""
                         note = ""
@@ -200,7 +205,10 @@ class ConvertJsonToTSV(object):
                                                          ]["orf_prot_sequence"]
 
                             if len(rgi_data[hsp]) != 0:
-                                if rgi_data[hsp][hit]["model_type_id"] == 41091:
+                                if rgi_data[hsp][hit]["model_type_id"] == 41091: # protein overexpression model
+                                    curated_frameshifts = "n/a"
+                                    denovo_frameshifts = "n/a"
+
                                     if "snp" in rgi_data[hsp][ordered[0]]:
                                         for x in rgi_data[hsp].values():
                                             if "snp" in x.keys() and x["snp"] != "n/a":
@@ -214,12 +222,11 @@ class ConvertJsonToTSV(object):
                                                         x["snp"]["original"] + str(x["snp"]["position"]) + x["snp"]["change"] + ":" + x['model_id'])
                                                     other_snps = ', '.join(
                                                         temp3)
-                                    else:
-                                        best_snps = "n/a"
-                                        other_snps = "n/a"
-                                elif rgi_data[hsp][hit]["model_type_id"] in [40293, 40295]:
+                                                        
+                                elif rgi_data[hsp][hit]["model_type_id"] in [40293, 40295]: # protein variant & rRNA gene variant models
+                                    # print (rgi_data[hsp][ordered[0]])
                                     if "snp" in rgi_data[hsp][ordered[0]]:
-										# print(rgi_data[hsp][ordered[0]])
+                                        # print(rgi_data[hsp][ordered[0]])
                                         for x in rgi_data[hsp].values():
 											# print(x)
                                             if "snp" in x.keys() and x["snp"] != "n/a":
@@ -233,6 +240,7 @@ class ConvertJsonToTSV(object):
                                                         x["snp"]["original"] + str(x["snp"]["position"]) + x["snp"]["change"] + ":" + x['model_id'])
                                                     other_snps = ', '.join(
                                                         temp3)
+                                                    
                                             # add unique snps
                                             temp2 = list(
                                                 OrderedDict.fromkeys(temp2))
@@ -241,7 +249,8 @@ class ConvertJsonToTSV(object):
                                                 OrderedDict.fromkeys(temp3))
                                             other_snps = ', '.join(temp3)
 
-                                        ## frameshifts
+                                    ## frameshifts
+                                    if "curated_fs" in rgi_data[hsp][ordered[0]] or "denovo_fs" in rgi_data[hsp][ordered[0]]:
                                         for x in rgi_data[hsp].values():
                                             # print(x)
                                             if "curated_fs" in x.keys() and x["curated_fs"] != "n/a":
@@ -252,17 +261,28 @@ class ConvertJsonToTSV(object):
                                                 denovo_frameshifts = ', '.join(x["denovo_fs"])
                                             else:
                                                 denovo_frameshifts = "n/a"
-									
-                                    else:
+                                    
+                                    if not best_snps:
                                         best_snps = "n/a"
+                                    if not other_snps:
                                         other_snps = "n/a"
-                                elif rgi_data[hsp][hit]["model_type_id"] == 40292:
-                                    best_snps = "n/a"
-                                    other_snps = "n/a"
-                                if not other_snps:
-                                    other_snps = "n/a"
+                                    if not curated_frameshifts:
+                                        curated_frameshifts = "n/a"
+                                    if not denovo_frameshifts:
+                                        denovo_frameshifts = "n/a"
+
+                                elif rgi_data[hsp][hit]["model_type_id"] == 40292: # protein homolog model
+                                    if not best_snps:
+                                        best_snps = "n/a"
+                                    if not other_snps:
+                                        other_snps = "n/a"
+                                    if not curated_frameshifts:
+                                        curated_frameshifts = "n/a"
+                                    if not denovo_frameshifts:
+                                        denovo_frameshifts = "n/a"
+
 #### code above is good
-                                if rgi_data[hsp][hit]["model_type_id"] in [40295]:
+                                if rgi_data[hsp][hit]["model_type_id"] in [40295]: # rRNA gene variant model
                                     percentage_length_reference_sequence = format((abs(orf_end - orf_start) /
                                                                                    len(rgi_data[hsp][ordered[0]]["dna_sequence_from_broadstreet"]))*100, '.2f')
                                 else:
@@ -292,8 +312,6 @@ class ConvertJsonToTSV(object):
                                                                  ]["model_type"],
                                                    best_snps,
                                                    other_snps,
-												   curated_frameshifts,
-												   denovo_frameshifts,
                                                    "; ".join(rgi_data[hsp][ordered[0]]["ARO_category"][x]["category_aro_name"] for x in rgi_data[hsp][ordered[0]]["ARO_category"]
                                                              if rgi_data[hsp][ordered[0]]["ARO_category"][x]["category_aro_class_name"] == 'Drug Class'),
                                                    "; ".join(rgi_data[hsp][ordered[0]]["ARO_category"][x]["category_aro_name"] for x in rgi_data[hsp][ordered[0]]["ARO_category"]
@@ -318,14 +336,19 @@ class ConvertJsonToTSV(object):
                                                    "; ".join(rgi_data[hsp][ordered[0]]["ARO_category"][x]["category_aro_name"] for x in rgi_data[hsp][ordered[0]]["ARO_category"]
                                                              if rgi_data[hsp][ordered[0]]["ARO_category"][x]["category_aro_class_name"] == 'Antibiotic'),
                                                    rgi_data[hsp][ordered[0]
-                                                                 ]["ast_source"]
+                                                                 ]["ast_source"],
+												   curated_frameshifts,
+												   denovo_frameshifts
                                                    ]
                             for key, value in match_dict.items():
                                 writer.writerow(value)
 
                         else:
                             if len(rgi_data[hsp]) != 0:
-                                if rgi_data[hsp][hit]["model_type_id"] == 41091:
+                                if rgi_data[hsp][hit]["model_type_id"] == 41091: # protein overexpression model
+                                    # curated_frameshifts = "n/a"
+                                    # denovo_frameshifts = "n/a"
+
                                     if "snp" in rgi_data[hsp][ordered[0]]:
                                         for x in rgi_data[hsp].values():
                                             if "snp" in x.keys() and x["snp"] != "n/a":
@@ -339,11 +362,15 @@ class ConvertJsonToTSV(object):
                                                         x["snp"]["original"] + str(x["snp"]["position"]) + x["snp"]["change"] + ":" + x['model_id'])
                                                     other_snps = ', '.join(
                                                         temp3)
-                                    else:
-                                        best_snps = "n/a"
-                                        other_snps = "n/a"
-                                elif rgi_data[hsp][hit]["model_type_id"] == 40293:
+                                                    
+                                # if not best_snps:
+                                #     best_snps = "n/a"
+                                # if not other_snps:
+                                #     other_snps = "n/a"
+                                                    
+                                elif rgi_data[hsp][hit]["model_type_id"] == 40293: # protein variant model
                                     if "snp" in rgi_data[hsp][ordered[0]]:
+                                        # print(rgi_data[hsp][ordered[0]])
                                         for x in rgi_data[hsp].values():
                                             if "snp" in x.keys() and x["snp"] != "n/a":
                                                 if x['model_id'] == rgi_data[hsp][ordered[0]]['model_id']:
@@ -356,11 +383,9 @@ class ConvertJsonToTSV(object):
                                                         x["snp"]["original"] + str(x["snp"]["position"]) + x["snp"]["change"] + ":" + x['model_id'])
                                                     other_snps = ', '.join(
                                                         temp3)
-                                    else:
-                                        best_snps = "n/a"
-                                        other_snps = "n/a"
-                                        
-                                        ## frameshifts
+                                                                                            
+                                    ## frameshifts
+                                    if "curated_fs" in rgi_data[hsp][ordered[0]] or "denovo_fs" in rgi_data[hsp][ordered[0]]:
                                         for x in rgi_data[hsp].values():
                                             # print(x)
                                             if "curated_fs" in x.keys() and x["curated_fs"] != "n/a":
@@ -370,11 +395,26 @@ class ConvertJsonToTSV(object):
                                             if "denovo_fs" in x.keys() and x["denovo_fs"] != "n/a":
                                                 denovo_frameshifts = ', '.join(x["denovo_fs"])
                                             else:
-                                                denovo_frameshifts = "n/a"
+                                                denovo_frameshifts = "n/a"  
+
+                                    if not best_snps:
+                                        best_snps = "n/a"
+                                    if not other_snps:
+                                        other_snps = "n/a"
+                                    if not curated_frameshifts:
+                                        curated_frameshifts = "n/a"
+                                    if not denovo_frameshifts:
+                                        denovo_frameshifts = "n/a"
                                                        
-                                elif rgi_data[hsp][hit]["model_type_id"] == 40292:
-                                    best_snps = "n/a"
-                                    other_snps = "n/a"
+                                elif rgi_data[hsp][hit]["model_type_id"] == 40292: # protein homolog model
+                                    if not best_snps:
+                                        best_snps = "n/a"
+                                    if not other_snps:
+                                        other_snps = "n/a"
+                                    if not curated_frameshifts:
+                                        curated_frameshifts = "n/a"
+                                    if not denovo_frameshifts:
+                                        denovo_frameshifts = "n/a"
 
                                 match_dict[hsp] = [hsp, "", "", "", "",
                                                    rgi_data[hsp][ordered[0]
@@ -393,8 +433,6 @@ class ConvertJsonToTSV(object):
                                                                  ]["model_type"],
                                                    best_snps,
                                                    other_snps,
-												   curated_frameshifts,
-											       denovo_frameshifts,
                                                    "; ".join(rgi_data[hsp][ordered[0]]["ARO_category"][x]["category_aro_name"] for x in rgi_data[hsp][ordered[0]]["ARO_category"]
                                                              if rgi_data[hsp][ordered[0]]["ARO_category"][x]["category_aro_class_name"] == 'Drug Class'),
                                                    "; ".join(rgi_data[hsp][ordered[0]]["ARO_category"][x]["category_aro_name"] for x in rgi_data[hsp][ordered[0]]["ARO_category"]
@@ -420,7 +458,9 @@ class ConvertJsonToTSV(object):
                                                    "; ".join(rgi_data[hsp][ordered[0]]["ARO_category"][x]["category_aro_name"] for x in rgi_data[hsp][ordered[0]]["ARO_category"]
                                                              if rgi_data[hsp][ordered[0]]["ARO_category"][x]["category_aro_class_name"] == 'Antibiotic'),
                                                    rgi_data[hsp][ordered[0]
-                                                                 ]["ast_source"]
+                                                                 ]["ast_source"],
+ 												   curated_frameshifts,
+											       denovo_frameshifts
                                                    ]
 
                             for key, value in match_dict.items():
@@ -442,8 +482,6 @@ class ConvertJsonToTSV(object):
         h["Model_type"] = "CARD detection model type"
         h["SNPs_in_Best_Hit_ARO"] = "Mutations observed in the ARO term of top hit in CARD (if applicable)"
         h["Other_SNPs"] = "Mutations observed in ARO terms of other hits indicated by model id (if applicable)"
-        h["Curated_Frameshifts"] = "CARD-curated frameshifts observed in the ARO term of top hit in CARD (if applicable)"
-        h["Denovo_Frameshifts"] = "Newly discovered frameshifts (not curated in CARD) observed in the ARO term of top hit in CARD (if applicable"
         h["Drug Class"] = "ARO Categorization"
         h["Resistance Mechanism"] = "ARO Categorization"
         h["AMR Gene Family"] = "ARO Categorization"
@@ -453,6 +491,8 @@ class ConvertJsonToTSV(object):
         h["Percentage Length of Reference Sequence"] = "Percentage Length of Reference Sequence"
         h["ID"] = "HSP identifier (internal to RGI)"
         h["Model_ID"] = "CARD detection model id"
+        h["Curated_Frameshifts"] = "CARD-curated frameshifts observed in the ARO term of top hit in CARD (if applicable)"
+        h["Denovo_Frameshifts"] = "Newly discovered frameshifts (not curated in CARD) observed in the ARO term of top hit in CARD (if applicable"
 
         print("\n")
         print("COLUMN", "\t\t\t", "HELP_MESSAGE")
