@@ -39,21 +39,10 @@ class Variant(MutationsModule):
 				self.input_sequence, self.input_type)
 			predicted_genes_dict_protein = self.get_orf_protein_sequence(
 				self.input_sequence, self.input_type)
-			
-		# print("predicted proteins") # translated from the predicted GENES
-		# print(predicted_genes_dict_protein)
-		# print("=========================")
-		# print("predicted genes")
-		# print(predicted_genes_dict)
-		# print("=========================")
 
 		if self.input_type == "protein":
 			submitted_proteins_dict = (
 				self.get_submitted_protein_sequence(self.input_sequence))
-		
-		# print("submitted proteins (no predictions needed, just BLAST/DIAMOND)")
-		# print(submitted_proteins_dict)
-		# print("=========================")
 
 		with open(os.path.join(self.data,"card.json")) as json_file:
 			json_data = json.load(json_file)
@@ -62,17 +51,17 @@ class Variant(MutationsModule):
 			with open(self.dna_xml_file, 'r') as blastn_result_handle:
 				blastn_records = NCBIXML.parse(blastn_result_handle)
 				for blastn_record in blastn_records:
-					for alignment in blastn_record.alignments:
+					bnquery_def = blastn_record.query
+					# print(vars(blastn_record)
+
+					for alignment in blastn_record.alignments:	
+						fs_count = 0	
 						align_title = alignment.title
 						model_type_id = self.extract_nth_bar(align_title, 0)
 						# logger.info("model_type_id: {} ".format(model_type_id))
 						space_pos = align_title.index(' ')
 						hit_id = align_title[0:space_pos]
 						hit_id = hit_id.encode('ascii','replace')
-						hit_def_blastn = self.extract_nth_bar(align_title, -1).split(" ")[1]
-						# print(hit_def_blastn)
-						# print("debug 2:", hit_id)
-
 						model_descrpt = align_title[align_title.index(' ')+1:]
 						underscore_in_MD = model_descrpt.index('_')
 						model_id = model_descrpt[0:underscore_in_MD]
@@ -97,17 +86,18 @@ class Variant(MutationsModule):
 							# print(fsl)
 							
 							for hsp in alignment.hsps:
-								# print("FS in alignment title\n")
-								# print(align_title) ## this'll help debugging if you have two frameshift outputs that look the same (same align title, but HSPs differ)
-								# print(hsp, "\n")
-								query_seq =  hsp.query.replace('-', '')
-								real_query_length = len(query_seq)
-								sbjct_seq = hsp.sbjct.replace('-', '')
-								real_sbjct_length = len(sbjct_seq)
+								fs_count += 1
+								if fs_count == 1:
+									query_seq =  hsp.query.replace('-', '')
+									real_query_length = len(query_seq)
+									sbjct_seq = hsp.sbjct.replace('-', '')
+									real_sbjct_length = len(sbjct_seq)
 
-								card_dna_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["dna_sequence"]["sequence"]
+									card_dna_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["dna_sequence"]["sequence"]
 
-								self.frameshift(fsl, hsp.query, hsp.sbjct, card_dna_ref, hit_def_blastn)
+									self.frameshift(fsl, hsp.query, hsp.sbjct, card_dna_ref, bnquery_def)
+								else:
+									break
 
 		except FileNotFoundError as e:
 			logger.info("Skipping frameshift search...")
@@ -115,16 +105,14 @@ class Variant(MutationsModule):
 
 		with open(self.xml_file, 'r') as result_handle:
 			blast_records = NCBIXML.parse(result_handle)
-			# print(blast_records)
-			for blast_record in blast_records:
+			for blast_record in blast_records:			
+				bpquery_def = blast_record.query
+
 				perfect = {}
 				strict = {}
 				loose = {}
 				for alignment in blast_record.alignments:
 					align_title = alignment.title
-					# print("SNV in alignment title\n")
-					# print(align_title)
-					# print(hsp, "\n")
 					orf_info = blast_record.query.encode('ascii','replace')
 					c = 0
 					barc = 0
@@ -149,12 +137,10 @@ class Variant(MutationsModule):
                                                  1: model_descrpt.index(' ')]
 					pass_value = self.extract_nth_bar(alignment.title, 1)
 					model_type_id = self.extract_nth_bar(align_title, 0)
-					# print(model_type_id)
 					# logger.info("model_type_id: {} ".format(model_type_id))
 					space_pos = align_title.index(' ')
 					hit_id = align_title[0:space_pos]
 					hit_id = hit_id.encode('ascii','replace')
-					hit_def_blastp = self.extract_nth_bar(align_title, -1).split(" ")[1]
 
 					model_descrpt = align_title[align_title.index(' ')+1:]
 					underscore_in_MD = model_descrpt.index('_')
@@ -178,38 +164,30 @@ class Variant(MutationsModule):
 						evalue_snp = self.extract_nth_bar(align_title, 2)
 						# evalue_snp_dec = evalue_snp
 						snpl = evalue_snp.split(',')
-						
-						# print("\nblastp align title:", align_title)
-						# print(snpl)
-						# print()
 
 						for hsp in alignment.hsps:
+							# print("================SNV LIST===================")
+							# print(snpl)
+							# print("===========================================")
 							query_seq =  hsp.query.replace('-', '')
 							real_query_length = len(query_seq)
 							sbjct_seq = hsp.sbjct.replace('-', '')
 							real_sbjct_length = len(sbjct_seq)
 
-							# print(orf_info,"\n",hsp)
-
-							# print(self.extract_nth_bar(orf_info.decode(), 0))
-							# print(self.extract_nth_bar(orf_info.decode(), 1))
-							# print(self.extract_nth_bar(orf_info.decode(), 2))
-							# print(orf_from.decode())
-
 							self.single_resistance_variant(
 								predicted_genes_dict_protein, submitted_proteins_dict, snpl, real_sbjct_length, 
-								hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info, hit_def_blastp
+								hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info, bpquery_def
 								)
 							
-							mm_output = self.consolidate_mutations(self.input_type)
+							mm_output = self.consolidate_mutations(self.input_type, hsp.bits, true_pass_evalue)
 							# print("mm output:\n", mm_output, "\n")
 							# for s in mm_output:
 							# 	print(s["eachs"])
 							# 	print(float(format(float(hsp.identities*100) / len(hsp.query), '.2f')))
 
-							if mm_output != None:
+							if mm_output:
 								for loaded_snp in mm_output:
-									if loaded_snp != None:
+									if loaded_snp:
 										# print("loaded snp\n:", loaded_snp, "\n")
 										# print("eachs:", loaded_snp["eachs"], "hsp bits:", hsp.bits, "pass bitscore cutoff:", true_pass_evalue)
 										try:
