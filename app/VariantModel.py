@@ -50,10 +50,11 @@ class Variant(MutationsModule):
 		try:
 			with open(self.dna_xml_file, 'r') as blastn_result_handle:
 				blastn_records = NCBIXML.parse(blastn_result_handle)
+				fs_result = []
+
 				for blastn_record in blastn_records:
 					bnquery_def = blastn_record.query
 					# print(vars(blastn_record)
-
 					for alignment in blastn_record.alignments:	
 						fs_count = 0	
 						align_title = alignment.title
@@ -95,10 +96,11 @@ class Variant(MutationsModule):
 
 									card_dna_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["dna_sequence"]["sequence"]
 
-									self.frameshift(fsl, hsp.query, hsp.sbjct, card_dna_ref, bnquery_def)
+									fs_result.append(self.frameshift(fsl, hsp.query, hsp.sbjct, card_dna_ref, bnquery_def))
 								else:
 									break
-
+				# print(fs_result)
+				
 		except FileNotFoundError as e:
 			logger.info("Skipping frameshift search...")
 			pass
@@ -174,16 +176,14 @@ class Variant(MutationsModule):
 							sbjct_seq = hsp.sbjct.replace('-', '')
 							real_sbjct_length = len(sbjct_seq)
 
-							self.single_resistance_variant(
+							srv_result = self.single_resistance_variant(
 								predicted_genes_dict_protein, submitted_proteins_dict, snpl, real_sbjct_length, 
 								hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info, bpquery_def
 								)
-							
-							mm_output = self.consolidate_mutations(self.input_type, hsp.bits, true_pass_evalue)
-							# print("mm output:\n", mm_output, "\n")
-							# for s in mm_output:
-							# 	print(s["eachs"])
-							# 	print(float(format(float(hsp.identities*100) / len(hsp.query), '.2f')))
+
+							mm_output = self.consolidate_mutations(self.input_type, srv_result, fs_result, hsp.bits, true_pass_evalue)
+
+							# print(mm_output)
 
 							if mm_output:
 								for loaded_snp in mm_output:

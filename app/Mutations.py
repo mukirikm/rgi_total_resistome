@@ -16,8 +16,7 @@ class MutationsModule(BaseModel):
     """
 
     def __init__ (self):
-        self.srv_result = None
-        self.fs_result = None
+       pass
 			
     def __repr__(self):
         """
@@ -112,16 +111,16 @@ class MutationsModule(BaseModel):
                     srv_output["query_snps"] = query_snps
 
                     # print("srv output:", srv_output)
-                    # self.srv_result.append(srv_output)
-                    self.srv_result = srv_output
-                    # print(self.srv_result)
-                    return self.srv_result
+                    # srv_result.append(srv_output)
+                    srv_result = srv_output
+                    # print(srv_result)
+                    return srv_result
                 else: # if SNP is not found
                     srv_output["query_def"] = query_def
                     srv_output["chan"] = "no_SNP_found"
-                    self.srv_result = srv_output
-                    # print(self.srv_result)
-                    return self.srv_result
+                    srv_result = srv_output
+                    # print(srv_result)
+                    return srv_result
         
     def frameshift(self, fsl, hsp_query, hsp_sbjct, card_dna_ref, query_def): 
         """
@@ -255,18 +254,8 @@ class MutationsModule(BaseModel):
             else:
                 fs_result_prelim["query_def"] = query_def
 
-            # # print(fs_result_prelim)
-            # if not fs_result_prelim:
-            #     fs_result_prelim
-            #     self.fs_result = None
-            #     # print(self.fs_result)
-            #     # return self.fs_result
-            # else:
-            #     self.fs_result = fs_result_prelim
-            #     # print(self.fs_result)
-            self.fs_result = fs_result_prelim
-            print(self.fs_result) 
-            return self.fs_result
+            fs_result = fs_result_prelim
+            return fs_result
 
     def single_fs(self, codon_count, translated_stripped_seq, split_ref):
         aa_pos = codon_count
@@ -292,48 +281,49 @@ class MutationsModule(BaseModel):
         
         return aa_count + 1
 
-    def consolidate_mutations(self, input_type, hsp_bitscore=None, pass_eval=None):
+    def consolidate_mutations(self, input_type, srv, fs, hsp_bitscore=None, pass_eval=None):
         if input_type == "protein": # CASE 1: if the input is a protein there won't be a BLASTN xml generated, thus, no frameshift output
             logger.info("no frameshift result generated (protein input); only SNV result exists")
-            print("protein input srv result:", self.srv_result)
-            return [self.srv_result]
+            # print("protein input srv result:", [srv], "\n")
+            return [srv]
         else:
-            print("mm fs:", self.fs_result)
-            print("mm srv:", self.srv_result)
-            print()
-            # print(self.fs_result)
-            # if self.srv_result and not self.fs_result:
-            #     print("no frameshift result generated; only SNV result exists")
-            #     print("protein input srv result:", self.srv_result)
-            # # if self.fs_result["query_def"] in self.srv_result["query_def"]:
-            # #     print("=========")
-            # #     print("frameshift query def:", self.fs_result["query_def"])
-            # #     print("srv query def:", self.srv_result["query_def"])
-            # #     print()
-            # if self.fs_result and self.srv_result and self.srv_result["chan"] != "no_SNP_found": # CASE 2
-            #     if self.fs_result["query_def"] in self.srv_result["query_def"]:
-            #         print("=======SAME; SNP AND FS FOUND=======")
-            #         print("frameshift query def:", self.fs_result["query_def"])
-            #         print("srv query def:", self.srv_result["query_def"])
-            #         print("====================================")            
-            # # CASE 3
-            # if self.fs_result and self.srv_result and self.srv_result["chan"] == "no_SNP_found": # CASE 3
-            #     if self.fs_result["query_def"] in self.srv_result["query_def"]:
-            #         if "curated_fs" in self.fs_result and (float(hsp_bitscore) >= float(pass_eval)):
-            #             print("=======SAME; FS FOUND BUT NO SNP (STRICT PROTEIN HIT)=======")
-            #             print("hsp bitscore:", hsp_bitscore, "| pass bitscore:", pass_eval)
-            #             print("fs result:", self.fs_result)
-            #             print("srv query def:", self.srv_result["query_def"])
-            #             print("old srv result:", self.srv_result)
-            #             self.srv_result["type_match"] = "Strict"
-            #             print("updated srv result:", self.srv_result)
-            #             print("============================================================")
-            #         elif "curated_fs" in self.fs_result and (float(hsp_bitscore) < float(pass_eval)):
-            #             print("=======SAME; FS FOUND BUT NO SNP (LOOSE PROTEIN HIT; WE DON'T WANT THESE!)=======")
-            #             print("hsp bitscore:", hsp_bitscore, "| pass bitscore:", pass_eval)
-            #             print("fs result:", self.fs_result)
-            #             print("srv query def:", self.srv_result["query_def"])
-            #             print("old srv result:", self.srv_result)
-            #             self.srv_result["type_match"] = "Strict"
-            #             print("updated srv result:", self.srv_result)                        
-            #             print("=================================================================================")
+            for fs_hit in fs:
+                if (srv and fs_hit) and ("curated_fs" not in fs_hit) and ("denovo_fs" not in fs_hit): # CASE 1 (only SNP)
+                    if fs_hit["query_def"] in srv["query_def"]:
+                        # print("fs_hit:", fs_hit)
+                        print("only SNP srv result:", [srv], "\n")
+                        return [srv]
+                    
+                if fs_hit and srv and srv["chan"] != "no_SNP_found": # CASE 2
+                    if fs_hit["query_def"] in srv["query_def"]:
+                        print("=======SAME; SNP AND FS FOUND=======")
+                        print("fs query def:", fs_hit["query_def"])
+                        print("srv query def:", srv["query_def"])
+                        # print(fs_hit)
+                        print([srv | fs_hit])
+                        print("====================================\n")   
+                        return [srv | fs_hit]
+
+                if fs_hit and srv and srv["chan"] == "no_SNP_found": # CASE 3
+                    if fs_hit["query_def"] in srv["query_def"]:
+                        if "curated_fs" in fs_hit and (float(hsp_bitscore) >= float(pass_eval)):
+                            print("=======SAME; FS FOUND BUT NO SNP (STRICT PROTEIN HIT)=======")
+                            print("hsp bitscore:", hsp_bitscore, "| pass bitscore:", pass_eval, "\n")
+                            print("fs query def:", fs_hit["query_def"])
+                            print("srv query def:", srv["query_def"])
+                            # print("old srv result:", srv, "\n")
+                            srv["fs_bump"] = "yes"
+                            # print("updated srv result:", srv)
+                            print([srv | fs_hit])
+                            print("============================================================\n")
+                            return [srv | fs_hit]
+                        elif "curated_fs" in fs_hit and (float(hsp_bitscore) < float(pass_eval)):
+                            print("=======SAME; FS FOUND BUT NO SNP (LOOSE PROTEIN HIT; WE DON'T WANT THESE????)=======")
+                            print("hsp bitscore:", hsp_bitscore, "| pass bitscore:", pass_eval, "\n")
+                            print("fs query def:", fs_hit["query_def"])
+                            print("srv query def:", srv["query_def"])
+                            print([srv | fs_hit])
+                            # print("old srv result:", srv, "\n")
+                            # srv_result["type_match"] = "Strict"
+                            # print("updated srv result:", srv)                        
+                            print("=================================================================================\n")
