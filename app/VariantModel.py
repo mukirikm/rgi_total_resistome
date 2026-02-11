@@ -54,41 +54,55 @@ class Variant(MutationsModule):
 
 				for blastn_record in blastn_records:
 					bnquery_def = blastn_record.query
-					# print(vars(blastn_record)
-					for alignment in blastn_record.alignments:	
-						fs_count = 0	
-						align_title = alignment.title
-						model_type_id = self.extract_nth_bar(align_title, 0)
-						# logger.info("model_type_id: {} ".format(model_type_id))
-						space_pos = align_title.index(' ')
-						hit_id = align_title[0:space_pos]
-						hit_id = hit_id.encode('ascii','replace')
-						model_descrpt = align_title[align_title.index(' ')+1:]
-						underscore_in_MD = model_descrpt.index('_')
-						model_id = model_descrpt[0:underscore_in_MD]
-						seq_in_model = model_descrpt[underscore_in_MD+1: model_descrpt.index(' ')]
-						pass_value = self.extract_nth_bar(alignment.title, 1)
-						# logger.info("pass_value: {}".format(pass_value))
-						
-						if model_type_id == 40293 and "Frameshift: None" not in align_title:
-							try:
-								true_pass_evalue = float(pass_value)
-							except ValueError:
-								true_pass_evalue = float(
-									pass_value[0:pass_value.find(' ')])
+					# print(vars(blastn_record))
+					if blastn_record.alignments:
+						for alignment in blastn_record.alignments:	
+							# fs_count = 0	
+							align_title = alignment.title
+							model_type_id = self.extract_nth_bar(align_title, 0)
+							# logger.info("model_type_id: {} ".format(model_type_id))
+							space_pos = align_title.index(' ')
+							hit_id = align_title[0:space_pos]
+							hit_id = hit_id.encode('ascii','replace')
+							model_descrpt = align_title[align_title.index(' ')+1:]
+							underscore_in_MD = model_descrpt.index('_')
+							model_id = model_descrpt[0:underscore_in_MD]
+							seq_in_model = model_descrpt[underscore_in_MD+1: model_descrpt.index(' ')]
+							pass_value = self.extract_nth_bar(alignment.title, 1)
+							# logger.info("pass_value: {}".format(pass_value))
+							
+							if model_type_id == 40293 and "Frameshift: None" not in align_title:
+								# print(bnquery_def)
+								# print(align_title)
 
-							# logger.info("mutation | model_type_id = " + str(align_title))
-							init = 0
-							fsl = []
-							temp = ""
-							
-							evalue_fs = self.extract_nth_bar(align_title, 2)
-							fsl = evalue_fs.split(',')
-							# print(fsl)
-							
-							for hsp in alignment.hsps:
-								fs_count += 1
-								if fs_count == 1:
+								try:
+									true_pass_evalue = float(pass_value)
+								except ValueError:
+									true_pass_evalue = float(
+										pass_value[0:pass_value.find(' ')])
+
+								fsl = []
+								fs_dict_list = []
+								
+								evalue_fs = self.extract_nth_bar(align_title, 2)
+								fsl = evalue_fs.split(',')
+
+										## grabbing curated frameshifts from blast XML (change to CARD JSON as input later?)
+								for each_fs in fsl:
+									position = int(
+										''.join(filter(str.isdigit, each_fs)))
+
+									original = (each_fs.split(
+										''.join(filter(str.isdigit, each_fs))))
+									
+									fs_dict_list.append(
+										{"original_aa": original[0], "aa_position": position})
+								# print(fs_dict_list)
+								
+								for hsp in alignment.hsps:
+									# fs_count += 1
+									# print(fs_count)
+									# if fs_count == 1:
 									query_seq =  hsp.query.replace('-', '')
 									real_query_length = len(query_seq)
 									sbjct_seq = hsp.sbjct.replace('-', '')
@@ -96,18 +110,29 @@ class Variant(MutationsModule):
 
 									card_dna_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["dna_sequence"]["sequence"]
 
-									fs_result.append(self.frameshift(fsl, hsp.query, hsp.sbjct, card_dna_ref, bnquery_def))
-								else:
-									break
-				# print(fs_result)
+									fs_result.append(self.frameshift(fs_dict_list, hsp.query, hsp.sbjct, card_dna_ref, bnquery_def))
+									# print(fs_result)
+									# else:
+									# 	break
+
+							elif model_type_id == 40293 and "Frameshift: None" in align_title:
+								fs_result.append({"query_def": bnquery_def})
+								# print(fs_result)
+							elif model_type_id != 40293: # anything but PVMs... don't have a fix for this yet, lol
+								fs_result.append({"query_def": bnquery_def})
+								# print(fs_result)
+					else:
+						fs_result.append({"query_def": bnquery_def})
+						# print(fs_result)
 				
 		except FileNotFoundError as e:
+			fs_result = None
 			logger.info("Skipping frameshift search...")
 			pass
 
 		with open(self.xml_file, 'r') as result_handle:
 			blast_records = NCBIXML.parse(result_handle)
-			for blast_record in blast_records:			
+			for blast_record in blast_records:
 				bpquery_def = blast_record.query
 
 				perfect = {}
@@ -159,35 +184,49 @@ class Variant(MutationsModule):
 								pass_value[0:pass_value.find(' ')])
 
 						# logger.info("mutation | model_type_id = " + str(align_title))
+						# print(bpquery_def)
+						# print(align_title)
+						# print(hit_id.decode())
 						init = 0
 						snpl = []
+						snp_dict_list = []
 						temp = ""
 
 						evalue_snp = self.extract_nth_bar(align_title, 2)
 						# evalue_snp_dec = evalue_snp
 						snpl = evalue_snp.split(',')
 
+						for each_snp in snpl:
+							position = int(
+                                ''.join(filter(str.isdigit, each_snp)))
+							
+							original_change = (each_snp.split(
+                                ''.join(filter(str.isdigit, each_snp))))
+							
+							snp_dict_list.append(
+                                {"original": original_change[0], "change": original_change[-1], "position": position})
+
 						for hsp in alignment.hsps:
-							# print("================SNV LIST===================")
-							# print(snpl)
-							# print("===========================================")
+							# print(align_title)
 							query_seq =  hsp.query.replace('-', '')
 							real_query_length = len(query_seq)
 							sbjct_seq = hsp.sbjct.replace('-', '')
 							real_sbjct_length = len(sbjct_seq)
 
-							srv_result = self.single_resistance_variant(
-								predicted_genes_dict_protein, submitted_proteins_dict, snpl, real_sbjct_length, 
+							for srv_result in self.single_resistance_variant(
+								predicted_genes_dict_protein, submitted_proteins_dict, snp_dict_list, real_sbjct_length, 
 								hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info, bpquery_def
-								)
+								):
+								# print(srv_result)
 
-							mm_output = self.consolidate_mutations(self.input_type, srv_result, fs_result, hsp.bits, true_pass_evalue)
+								if fs_result is not None: # find a more elegant way to put this?
+									mm_output = self.consolidate_mutations(self.input_type, srv_result, hit_id.decode(), fs_result, hsp.bits, true_pass_evalue)
+								else:
+									mm_output = self.consolidate_mutations(self.input_type, srv_result, hit_id.decode(), hsp.bits, true_pass_evalue)
 
-							# print(mm_output)
-
-							if mm_output:
-								for loaded_snp in mm_output:
-									if loaded_snp:
+								if mm_output:
+									for loaded_snp in mm_output:
+										# if loaded_snp:
 										# print("loaded snp\n:", loaded_snp, "\n")
 										# print("eachs:", loaded_snp["eachs"], "hsp bits:", hsp.bits, "pass bitscore cutoff:", true_pass_evalue)
 										try:
@@ -401,8 +440,6 @@ class Variant(MutationsModule):
 														slinsidedict["orf_prot_sequence"] = loaded_snp["orf_protein_sequence"]
 													else:
 														slinsidedict["orf_prot_sequence"] = "n/a"
-
-													# print("debug:", slinsidedict["query_start"], slinsidedict["query_end"], slinsidedict["query_from"])
 													slinsidedict["hit_start"] = ""
 													slinsidedict["hit_end"] = ""
 
@@ -421,8 +458,8 @@ class Variant(MutationsModule):
 											traceback.print_exc() # for karyn
 											logger.warning("Exception : {} -> {} -> Model({})".format(type(e), e, model_id))
 											logger.warning("{} ---> hsp.bits: {} {} ? {}".format(json_data[model_id]["model_name"],hsp.bits,type(hsp.bits), type(true_pass_evalue)))
-							else:
-								pass
+								else:
+									pass
 				blastResults = self.results(
 					blastResults, blast_record.query, perfect, strict , loose, self.include_nudge)
 				# print(loose)

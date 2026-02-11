@@ -24,26 +24,12 @@ class MutationsModule(BaseModel):
         """         
         return "Mutation({}".format(self.__dict__)
 
-    def single_resistance_variant(self, predicted_genes_dict_protein, submitted_proteins_dict, snpl, 
+    def single_resistance_variant(self, predicted_genes_dict_protein, submitted_proteins_dict, snp_dict_list, 
                                   real_sbjct_length, hsp_query, hsp_sbjct_start, hsp_sbjct, orf_info, query_def): 
         """
         Searches for SNVs in sequences.
         """
 
-        snp_dict_list = []
-
-        for each_snp in snpl:
-            # print(each_snp)
-            # snp_dict_list.append({"original": each_snp[0], "change": each_snp[-1], "position": int(each_snp[1:-1])})
-            position = int(
-                ''.join(filter(str.isdigit, each_snp)))
-
-            original_change = (each_snp.split(
-                ''.join(filter(str.isdigit, each_snp))))
-
-            snp_dict_list.append(
-                {"original": original_change[0], "change": original_change[-1], "position": position})
-            
         for eachs in snp_dict_list:
             srv_output = {}
             srv_output["query_def"] = query_def
@@ -79,12 +65,12 @@ class MutationsModule(BaseModel):
                 srv_output["wildtype"] = wildtype
 
                 # Report ONLY if the SNPs are present
-                qry = int(pos) - hsp_sbjct_start + self.find_num_dash(hsp_sbjct, (int(pos) - hsp_sbjct_start))
+                qry = int(
+                    pos) - hsp_sbjct_start + self.find_num_dash(hsp_sbjct, (int(pos) - hsp_sbjct_start))
                 srv_output["qry"] = qry
 
                 # check for Var
                 if str(chan) == "Var":
-                    # print(eachs)
                     # update to the change
                     chan = str(
                         hsp_query[pos - hsp_sbjct_start + self.find_num_dash(hsp_sbjct, (pos-hsp_sbjct_start))])
@@ -95,11 +81,13 @@ class MutationsModule(BaseModel):
                     else:
                         # change same as wildtype, don't report
                         chan = ""
-                        eachs["change"] = chan
+                        # eachs["change"] = chan
 
                 # print(hsp_query[qry], chan)
                 if hsp_query[qry] == chan: # if the amino acid at our specific position in the query sequence is the same as the NEW aa (same SNP change has occured)
+                    # print("hsp_query[qry]:", hsp_query[qry], "qry:", qry, "chan:", chan)
                     query_snps = {}
+                    # print(eachs)
 
                     # get position of mutation in the query sequence
                     d = int(
@@ -109,27 +97,17 @@ class MutationsModule(BaseModel):
                     # logger.debug("query_snp on frame {} {}".format(hsp.frame, json.dumps(query_snps, indent=2)))
 
                     srv_output["query_snps"] = query_snps
+                
+                    yield srv_output
 
-                    # print("srv output:", srv_output)
-                    # srv_result.append(srv_output)
-                    srv_result = srv_output
-                    # print(srv_result)
-                    return srv_result
-                else: # if SNP is not found
-                    srv_output["query_def"] = query_def
-                    srv_output["chan"] = "no_SNP_found"
-                    srv_result = srv_output
-                    # print(srv_result)
-                    return srv_result
-        
-    def frameshift(self, fsl, hsp_query, hsp_sbjct, card_dna_ref, query_def): 
+    def frameshift(self, fs_dict_list, hsp_query, hsp_sbjct, card_dna_ref, query_def): 
         """
         Searches for frameshifts in sequences.
         """
         
         fs_result_prelim = {}
     
-        fs_dict_list = []
+        # fs_dict_list = []
 
         fs_curated_list = []
         fs_denovo_list = []
@@ -143,16 +121,16 @@ class MutationsModule(BaseModel):
         # for insertions
         sbjct_codon_count = 0
         
-        ## grabbing curated frameshifts from blast XML (change to CARD JSON as input later?)
-        for each_fs in fsl:
-            position = int(
-                ''.join(filter(str.isdigit, each_fs)))
+        # ## grabbing curated frameshifts from blast XML (change to CARD JSON as input later?)
+        # for each_fs in fsl:
+        #     position = int(
+        #         ''.join(filter(str.isdigit, each_fs)))
 
-            original = (each_fs.split(
-                ''.join(filter(str.isdigit, each_fs))))
+        #     original = (each_fs.split(
+        #         ''.join(filter(str.isdigit, each_fs))))
             
-            fs_dict_list.append(
-                {"original_aa": original[0], "aa_position": position})
+        #     fs_dict_list.append(
+        #         {"original_aa": original[0], "aa_position": position})
                 
         split_ref = re.findall('.'*3, card_dna_ref)
          
@@ -177,6 +155,7 @@ class MutationsModule(BaseModel):
                             fs_ter = self.termination(translated_stripped_qry, aa_pos)
 
                             for eachfs in fs_dict_list:
+                                # print(eachfs)
                                 if eachfs["original_aa"] == translated_codon and eachfs["aa_position"] == aa_pos:
                                     # logger.info("curated del fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
                                     # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": qry_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
@@ -221,6 +200,7 @@ class MutationsModule(BaseModel):
                             fs_ter = self.termination(translated_stripped_sbjct, aa_pos)
 
                             for eachfs in fs_dict_list:
+                                # print(eachfs)
                                 if eachfs["original_aa"] == translated_codon and eachfs["aa_position"] == aa_pos:
                                     # logger.info("curated ins fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
                                     # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": sbjct_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
@@ -254,13 +234,13 @@ class MutationsModule(BaseModel):
             else:
                 fs_result_prelim["query_def"] = query_def
 
-            fs_result = fs_result_prelim
-            return fs_result
+            # fs_result = fs_result_prelim
+            # print(fs_result)
+            return fs_result_prelim
 
     def single_fs(self, codon_count, translated_stripped_seq, split_ref):
         aa_pos = codon_count
         affected_codon = split_ref[aa_pos - 1]
-        # print()
         # print("affected codon:", affected_codon)
         # print("trans stripped seq @ aapos:", translated_stripped_seq[aa_pos])
         # print("aa pos:", aa_pos)
@@ -281,49 +261,53 @@ class MutationsModule(BaseModel):
         
         return aa_count + 1
 
-    def consolidate_mutations(self, input_type, srv, fs, hsp_bitscore=None, pass_eval=None):
+    def consolidate_mutations(self, input_type, srv, hit_id, fs=None, hsp_bitscore=None, pass_eval=None):
         if input_type == "protein": # CASE 1: if the input is a protein there won't be a BLASTN xml generated, thus, no frameshift output
-            logger.info("no frameshift result generated (protein input); only SNV result exists")
+            # logger.info("no frameshift result generated (protein input); only SNV result exists")
             # print("protein input srv result:", [srv], "\n")
             return [srv]
-        else:
+        else:   
             for fs_hit in fs:
-                if (srv and fs_hit) and ("curated_fs" not in fs_hit) and ("denovo_fs" not in fs_hit): # CASE 1 (only SNP)
+                if srv is not None: # SNPs were found
                     if fs_hit["query_def"] in srv["query_def"]:
-                        # print("fs_hit:", fs_hit)
-                        print("only SNP srv result:", [srv], "\n")
-                        return [srv]
-                    
-                if fs_hit and srv and srv["chan"] != "no_SNP_found": # CASE 2
-                    if fs_hit["query_def"] in srv["query_def"]:
-                        print("=======SAME; SNP AND FS FOUND=======")
-                        print("fs query def:", fs_hit["query_def"])
-                        print("srv query def:", srv["query_def"])
-                        # print(fs_hit)
-                        print([srv | fs_hit])
-                        print("====================================\n")   
-                        return [srv | fs_hit]
-
-                if fs_hit and srv and srv["chan"] == "no_SNP_found": # CASE 3
-                    if fs_hit["query_def"] in srv["query_def"]:
-                        if "curated_fs" in fs_hit and (float(hsp_bitscore) >= float(pass_eval)):
-                            print("=======SAME; FS FOUND BUT NO SNP (STRICT PROTEIN HIT)=======")
-                            print("hsp bitscore:", hsp_bitscore, "| pass bitscore:", pass_eval, "\n")
-                            print("fs query def:", fs_hit["query_def"])
-                            print("srv query def:", srv["query_def"])
-                            # print("old srv result:", srv, "\n")
-                            srv["fs_bump"] = "yes"
-                            # print("updated srv result:", srv)
-                            print([srv | fs_hit])
-                            print("============================================================\n")
+                        if "curated_fs" not in fs_hit and "denovo_fs" not in fs_hit: # CASE 1 (only SNP)
+                            # print("===================ONLY SNP===================")
+                            # # # print("srv hit:", srv)
+                            # # # print("fs hit:", fs_hit)
+                            # print([srv])
+                            # print("==============================================\n")
+                            return [srv]
+                            
+                        elif "curated_fs" in fs_hit or "denovo_fs" in fs_hit: # CASE 2
+                            # print("=======SAME; SNP AND FS FOUND=======")
+                            # # print("fs query def:", fs_hit["query_def"])
+                            # # print("srv query def:", srv["query_def"])
+                            # print(fs_hit)
+                            # print([srv | fs_hit])
+                            # print("====================================\n")   
                             return [srv | fs_hit]
-                        elif "curated_fs" in fs_hit and (float(hsp_bitscore) < float(pass_eval)):
-                            print("=======SAME; FS FOUND BUT NO SNP (LOOSE PROTEIN HIT; WE DON'T WANT THESE????)=======")
-                            print("hsp bitscore:", hsp_bitscore, "| pass bitscore:", pass_eval, "\n")
-                            print("fs query def:", fs_hit["query_def"])
-                            print("srv query def:", srv["query_def"])
-                            print([srv | fs_hit])
-                            # print("old srv result:", srv, "\n")
-                            # srv_result["type_match"] = "Strict"
-                            # print("updated srv result:", srv)                        
-                            print("=================================================================================\n")
+                        
+                else: # CASE 3--SNPs were not found in any HSPs with SNP in the alignment title
+                    if "curated_fs" in fs_hit and (float(hsp_bitscore) >= float(pass_eval)):
+                        # print("=======SAME; FS FOUND BUT NO SNP (STRICT PROTEIN HIT)=======")
+                        # print("hsp bitscore:", hsp_bitscore, "| pass bitscore:", pass_eval, "\n")
+                        # print("fs query def:", fs_hit["query_def"])
+                        fs_hit["query_def"] = fs_hit["query_def"] + hit_id
+                        # print("srv query def:", srv["query_def"])
+                        # print("old srv result:", srv, "\n")
+                        # srv["fs_bump"] = "yes"
+                        # print("updated srv result:", srv)
+                        # print([fs_hit])
+                        # print("============================================================\n")
+                        return [fs_hit]
+                    # elif "curated_fs" in fs_hit and (float(hsp_bitscore) < float(pass_eval)):
+                    #     print("=======SAME; FS FOUND BUT NO SNP (LOOSE PROTEIN HIT; WE DON'T WANT THESE????)=======")
+                    # #     # print("hsp bitscore:", hsp_bitscore, "| pass bitscore:", pass_eval, "\n")
+                    # #     # print("fs query def:", fs_hit["query_def"])
+                    #     fs_hit["query_def"] = fs_hit["query_def"] + hit_id
+                    # #     # print("srv query def:", srv["query_def"])
+                    #     print([fs_hit])
+                    # #     # print("old srv result:", srv, "\n")
+                    # #     # srv["fs_bump"] = "yes"
+                    # #     # print("updated srv result:", srv)                        
+                    #     print("=================================================================================\n")
