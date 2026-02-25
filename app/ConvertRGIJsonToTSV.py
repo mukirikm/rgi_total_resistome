@@ -222,6 +222,9 @@ class ConvertJsonToTSV(object):
                                                         x["snp"]["original"] + str(x["snp"]["position"]) + x["snp"]["change"] + ":" + x['model_id'])
                                                     other_snps = ', '.join(
                                                         temp3)
+                                            elif "snp" in x.keys() and x["snp"] == "n/a":
+                                                best_snps = "n/a"
+                                                other_snps = "n/a"
                                     else:
                                         best_snps = "n/a"
                                         other_snps = "n/a"
@@ -235,8 +238,6 @@ class ConvertJsonToTSV(object):
                                                         x["snp"]["original"] + str(x["snp"]["position"]) + x["snp"]["change"])
                                                     best_snps = ', '.join(
                                                         temp2)
-                                                    # print(best_snps)
-                                                    # print()
                                                 else:
                                                     temp3.append(
                                                         x["snp"]["original"] + str(x["snp"]["position"]) + x["snp"]["change"] + ":" + x['model_id'])
@@ -250,14 +251,18 @@ class ConvertJsonToTSV(object):
                                             temp3 = list(
                                                 OrderedDict.fromkeys(temp3))
                                             other_snps = ', '.join(temp3)
+
+                                            if "snp" in x.keys() and x["snp"] == "n/a":
+                                                best_snps = "n/a"
+                                                other_snps = "n/a"
+
                                     else:
                                         best_snps = "n/a"
                                         other_snps = "n/a"
-
+                                    
                                     ## frameshifts
                                     if "curated_fs" in rgi_data[hsp][ordered[0]] or "denovo_fs" in rgi_data[hsp][ordered[0]]:
                                         for x in rgi_data[hsp].values():
-                                            # print(x)
                                             if "curated_fs" in x.keys() and x["curated_fs"] != "n/a":
                                                 curated_frameshifts = ', '.join(x["curated_fs"])
                                             else:
@@ -340,7 +345,7 @@ class ConvertJsonToTSV(object):
                             for key, value in match_dict.items():
                                 writer.writerow(value)
 
-                        else:
+                        else: ## protein input
                             if len(rgi_data[hsp]) != 0:
                                 if rgi_data[hsp][hit]["model_type_id"] == 41091: # protein overexpression model
                                     curated_frameshifts = "n/a"
@@ -359,6 +364,9 @@ class ConvertJsonToTSV(object):
                                                         x["snp"]["original"] + str(x["snp"]["position"]) + x["snp"]["change"] + ":" + x['model_id'])
                                                     other_snps = ', '.join(
                                                         temp3)
+                                            elif "snp" in x.keys() and x["snp"] == "n/a":
+                                                best_snps = "n/a"
+                                                other_snps = "n/a"
                                     else:
                                         best_snps = "n/a"
                                         other_snps = "n/a"
@@ -372,13 +380,14 @@ class ConvertJsonToTSV(object):
                                                         x["snp"]["original"] + str(x["snp"]["position"]) + x["snp"]["change"])
                                                     best_snps = ', '.join(
                                                         temp2)
-                                                    # print(best_snps)
-                                                    # print()
                                                 else:
                                                     temp3.append(
                                                         x["snp"]["original"] + str(x["snp"]["position"]) + x["snp"]["change"] + ":" + x['model_id'])
                                                     other_snps = ', '.join(
                                                         temp3)
+                                            elif "snp" in x.keys() and x["snp"] == "n/a":
+                                                best_snps = "n/a"
+                                                other_snps = "n/a"
                                     else:
                                         best_snps = "n/a"
                                         other_snps = "n/a"
@@ -386,7 +395,6 @@ class ConvertJsonToTSV(object):
                                     ## frameshifts
                                     if "curated_fs" in rgi_data[hsp][ordered[0]] or "denovo_fs" in rgi_data[hsp][ordered[0]]:
                                         for x in rgi_data[hsp].values():
-                                            # print(x)
                                             if "curated_fs" in x.keys() and x["curated_fs"] != "n/a":
                                                 curated_frameshifts = ', '.join(x["curated_fs"])
                                             else:

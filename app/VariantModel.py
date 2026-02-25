@@ -54,10 +54,8 @@ class Variant(MutationsModule):
 
 				for blastn_record in blastn_records:
 					bnquery_def = blastn_record.query
-					# print(vars(blastn_record))
 					if blastn_record.alignments:
 						for alignment in blastn_record.alignments:	
-							# fs_count = 0	
 							align_title = alignment.title
 							model_type_id = self.extract_nth_bar(align_title, 0)
 							# logger.info("model_type_id: {} ".format(model_type_id))
@@ -72,9 +70,6 @@ class Variant(MutationsModule):
 							# logger.info("pass_value: {}".format(pass_value))
 							
 							if model_type_id == 40293 and "Frameshift: None" not in align_title:
-								# print(bnquery_def)
-								# print(align_title)
-
 								try:
 									true_pass_evalue = float(pass_value)
 								except ValueError:
@@ -87,7 +82,7 @@ class Variant(MutationsModule):
 								evalue_fs = self.extract_nth_bar(align_title, 2)
 								fsl = evalue_fs.split(',')
 
-										## grabbing curated frameshifts from blast XML (change to CARD JSON as input later?)
+								## grabbing curated frameshifts from blast XML (change to CARD JSON as input later?)
 								for each_fs in fsl:
 									position = int(
 										''.join(filter(str.isdigit, each_fs)))
@@ -97,12 +92,8 @@ class Variant(MutationsModule):
 									
 									fs_dict_list.append(
 										{"original_aa": original[0], "aa_position": position})
-								# print(fs_dict_list)
 								
 								for hsp in alignment.hsps:
-									# fs_count += 1
-									# print(fs_count)
-									# if fs_count == 1:
 									query_seq =  hsp.query.replace('-', '')
 									real_query_length = len(query_seq)
 									sbjct_seq = hsp.sbjct.replace('-', '')
@@ -111,19 +102,13 @@ class Variant(MutationsModule):
 									card_dna_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["dna_sequence"]["sequence"]
 
 									fs_result.append(self.frameshift(fs_dict_list, hsp.query, hsp.sbjct, card_dna_ref, bnquery_def))
-									# print(fs_result)
-									# else:
-									# 	break
 
 							elif model_type_id == 40293 and "Frameshift: None" in align_title:
 								fs_result.append({"query_def": bnquery_def})
-								# print(fs_result)
 							elif model_type_id != 40293: # anything but PVMs... don't have a fix for this yet, lol
 								fs_result.append({"query_def": bnquery_def})
-								# print(fs_result)
 					else:
 						fs_result.append({"query_def": bnquery_def})
-						# print(fs_result)
 				
 		except FileNotFoundError as e:
 			fs_result = None
@@ -140,6 +125,7 @@ class Variant(MutationsModule):
 				loose = {}
 				for alignment in blast_record.alignments:
 					align_title = alignment.title
+					# print(align_title)
 					orf_info = blast_record.query.encode('ascii','replace')
 					c = 0
 					barc = 0
@@ -184,9 +170,6 @@ class Variant(MutationsModule):
 								pass_value[0:pass_value.find(' ')])
 
 						# logger.info("mutation | model_type_id = " + str(align_title))
-						# print(bpquery_def)
-						# print(align_title)
-						# print(hit_id.decode())
 						init = 0
 						snpl = []
 						snp_dict_list = []
@@ -207,7 +190,7 @@ class Variant(MutationsModule):
                                 {"original": original_change[0], "change": original_change[-1], "position": position})
 
 						for hsp in alignment.hsps:
-							# print(align_title)
+							# print(bpquery_def)
 							query_seq =  hsp.query.replace('-', '')
 							real_query_length = len(query_seq)
 							sbjct_seq = hsp.sbjct.replace('-', '')
@@ -217,8 +200,6 @@ class Variant(MutationsModule):
 								predicted_genes_dict_protein, submitted_proteins_dict, snp_dict_list, real_sbjct_length, 
 								hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info, bpquery_def
 								):
-								# print(srv_result)
-
 								if fs_result is not None: # find a more elegant way to put this?
 									mm_output = self.consolidate_mutations(self.input_type, srv_result, hit_id.decode(), fs_result, hsp.bits, true_pass_evalue)
 								else:
@@ -226,16 +207,9 @@ class Variant(MutationsModule):
 
 								if mm_output:
 									for loaded_snp in mm_output:
-										# if loaded_snp:
-										# print("loaded snp\n:", loaded_snp, "\n")
-										# print("eachs:", loaded_snp["eachs"], "hsp bits:", hsp.bits, "pass bitscore cutoff:", true_pass_evalue)
 										try:
-											# print("eachs:", loaded_snp["eachs"], "hsp bits:", hsp.bits, "pass bitscore cutoff:", true_pass_evalue)
-											# print("debug 2:", hit_id, ",", hsp.query[loaded_snp["qry"]], ",", loaded_snp["qry"], ",", loaded_snp["chan"])
 											if float(hsp.bits) >= float(true_pass_evalue): # if the hit passes its bitscore cut off (but isn't perfect)
 												""" Strict hits """
-												# print("eachs:", loaded_snp["eachs"], "hsp bits:", hsp.bits, "pass bitscore cutoff:", true_pass_evalue)
-												# print(loaded_snp["eachs"])
 												sinsidedict = {}
 												sinsidedict["type_match"] = "Strict"
 												if "eachs" in loaded_snp:
@@ -346,7 +320,6 @@ class Variant(MutationsModule):
 
 											else:
 												""" Loose hits """
-												# print(loaded_snp["eachs"])
 												slinsidedict = {}
 												slinsidedict["type_match"] = "Loose"
 												if "eachs" in loaded_snp:
@@ -462,6 +435,5 @@ class Variant(MutationsModule):
 									pass
 				blastResults = self.results(
 					blastResults, blast_record.query, perfect, strict , loose, self.include_nudge)
-				# print(loose)
-
+				# print(blastResults)
 			return blastResults

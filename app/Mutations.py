@@ -96,8 +96,11 @@ class MutationsModule(BaseModel):
                         "original": ori, "change": chan ,"position": d+1}
                     # logger.debug("query_snp on frame {} {}".format(hsp.frame, json.dumps(query_snps, indent=2)))
 
-                    srv_output["query_snps"] = query_snps
-                
+                    srv_output["query_snps"] = query_snps                
+                    yield srv_output
+                else:
+                    srv_output = None
+                    srv_output = {"query_def": query_def}
                     yield srv_output
 
     def frameshift(self, fs_dict_list, hsp_query, hsp_sbjct, card_dna_ref, query_def): 
@@ -109,11 +112,11 @@ class MutationsModule(BaseModel):
     
         # fs_dict_list = []
 
-        fs_curated_list = []
-        fs_denovo_list = []
+        fs_curated_list_reg = []
+        fs_denovo_list_reg = []
 
-        fs_curated_result = []
-        fs_denovo_result = []
+        fs_curated_result_HGVS = []
+        fs_denovo_result_HGVS = []
 
         # for deletions
         qry_codon_count = 0
@@ -159,21 +162,25 @@ class MutationsModule(BaseModel):
                                 if eachfs["original_aa"] == translated_codon and eachfs["aa_position"] == aa_pos:
                                     # logger.info("curated del fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
                                     # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": qry_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
-                                    fs_curated_list.append("%s%s%s" % (translated_codon, aa_pos, corr_aa))
-                                    fs_curated_result.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter))
+                                    # fs_curated_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
+                                    fs_curated_list_reg.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
+                                    fs_curated_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
                             
-                            if len(fs_curated_list) != 0:
-                                for _ in fs_curated_list:
-                                    if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list and ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_denovo_list:
+                            if len(fs_curated_list_reg) != 0:
+                                for _ in fs_curated_list_reg:
+                                    if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list_reg and ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_denovo_list_reg:
                                         # logger.info("novel del fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
                                         # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": qry_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
-                                        fs_denovo_list.append("%s%s%s" % (translated_codon, aa_pos, corr_aa))
-                                        fs_denovo_result.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) 
+                                        # fs_denovo_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
+                                        fs_denovo_list_reg.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
+                                        fs_denovo_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
                             else:
-                                if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list:
+                                if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list_reg:
                                     # logger.info("novel del fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
                                     # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": qry_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
-                                    fs_denovo_result.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter))
+                                    # fs_denovo_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
+                                    fs_denovo_list_reg.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
+                                    fs_denovo_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
 
                     ## for any other nucleotide in the sequence DO NOT COMMENT OUT
                     else:
@@ -204,38 +211,44 @@ class MutationsModule(BaseModel):
                                 if eachfs["original_aa"] == translated_codon and eachfs["aa_position"] == aa_pos:
                                     # logger.info("curated ins fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
                                     # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": sbjct_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
-                                    fs_curated_list.append("%s%s%s" % (translated_codon, aa_pos, corr_aa))
-                                    fs_curated_result.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter))
+                                    # fs_curated_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
+                                    fs_curated_list_reg.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
+                                    fs_curated_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
                                 
-                            if len(fs_curated_list) != 0:
-                                for _ in fs_curated_list:
-                                    if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list:
+                            if len(fs_curated_list_reg) != 0:
+                                for _ in fs_curated_list_reg:
+                                    if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list_reg:
                                         # logger.info("novel ins fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
                                         # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": sbjct_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
-                                        fs_denovo_list.append("%s%s%s" % (translated_codon, aa_pos, corr_aa))
-                                        fs_denovo_result.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter))
+                                        # fs_denovo_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
+                                        fs_denovo_list_reg.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
+                                        fs_denovo_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
                             else:
-                                if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list:
+                                if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list_reg:
                                     # logger.info("novel ins fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
                                     # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": sbjct_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
-                                    fs_denovo_result.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter))
+                                    # fs_denovo_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
+                                    fs_denovo_list_reg.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
+                                    fs_denovo_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
                     else:
                         sbjct_codon_count += 1   
 
             # except Exception as e:
             #     traceback.print_exc()
+            # print(fs_curated_list_reg)
+            # print(fs_curated_result_HGVS)
+            # print(fs_denovo_list_reg)
+            # print(fs_denovo_result_HGVS)
 
-            if len(fs_curated_result) > 0 or len(fs_denovo_result) > 0:
+            if len(fs_curated_result_HGVS) > 0 or len(fs_denovo_result_HGVS) > 0:
                 fs_result_prelim["query_def"] = query_def
-                if len(fs_curated_result) > 0:
-                    fs_result_prelim["curated_fs"] = fs_curated_result
-                if len(fs_denovo_result) > 0:
-                    fs_result_prelim["denovo_fs"] = fs_denovo_result
+                if len(fs_curated_result_HGVS) > 0:
+                    fs_result_prelim["curated_fs"] = fs_curated_list_reg
+                if len(fs_denovo_result_HGVS) > 0:
+                    fs_result_prelim["denovo_fs"] = fs_denovo_list_reg
             else:
                 fs_result_prelim["query_def"] = query_def
 
-            # fs_result = fs_result_prelim
-            # print(fs_result)
             return fs_result_prelim
 
     def single_fs(self, codon_count, translated_stripped_seq, split_ref):
@@ -268,7 +281,7 @@ class MutationsModule(BaseModel):
             return [srv]
         else:   
             for fs_hit in fs:
-                if srv is not None: # SNPs were found
+                if "query_snps" in srv: # SNPs were found
                     if fs_hit["query_def"] in srv["query_def"]:
                         if "curated_fs" not in fs_hit and "denovo_fs" not in fs_hit: # CASE 1 (only SNP)
                             # print("===================ONLY SNP===================")
@@ -288,26 +301,27 @@ class MutationsModule(BaseModel):
                             return [srv | fs_hit]
                         
                 else: # CASE 3--SNPs were not found in any HSPs with SNP in the alignment title
-                    if "curated_fs" in fs_hit and (float(hsp_bitscore) >= float(pass_eval)):
-                        # print("=======SAME; FS FOUND BUT NO SNP (STRICT PROTEIN HIT)=======")
-                        # print("hsp bitscore:", hsp_bitscore, "| pass bitscore:", pass_eval, "\n")
-                        # print("fs query def:", fs_hit["query_def"])
-                        fs_hit["query_def"] = fs_hit["query_def"] + hit_id
-                        # print("srv query def:", srv["query_def"])
-                        # print("old srv result:", srv, "\n")
-                        # srv["fs_bump"] = "yes"
-                        # print("updated srv result:", srv)
-                        # print([fs_hit])
-                        # print("============================================================\n")
-                        return [fs_hit]
-                    # elif "curated_fs" in fs_hit and (float(hsp_bitscore) < float(pass_eval)):
-                    #     print("=======SAME; FS FOUND BUT NO SNP (LOOSE PROTEIN HIT; WE DON'T WANT THESE????)=======")
-                    # #     # print("hsp bitscore:", hsp_bitscore, "| pass bitscore:", pass_eval, "\n")
-                    # #     # print("fs query def:", fs_hit["query_def"])
-                    #     fs_hit["query_def"] = fs_hit["query_def"] + hit_id
-                    # #     # print("srv query def:", srv["query_def"])
-                    #     print([fs_hit])
-                    # #     # print("old srv result:", srv, "\n")
-                    # #     # srv["fs_bump"] = "yes"
-                    # #     # print("updated srv result:", srv)                        
-                    #     print("=================================================================================\n")
+                    if fs_hit["query_def"] in srv["query_def"]:
+                        if "curated_fs" in fs_hit and (float(hsp_bitscore) >= float(pass_eval)):
+                            # print("=======SAME; FS FOUND BUT NO SNP (STRICT PROTEIN HIT)=======")
+                            # print("hsp bitscore:", hsp_bitscore, "| pass bitscore:", pass_eval, "\n")
+                            fs_hit["query_def"] = fs_hit["query_def"] + hit_id
+                            # print("fs query def:", fs_hit["query_def"])
+                            # print("srv query def:", srv["query_def"])
+                            # print("old srv result:", srv, "\n")
+                            # srv["fs_bump"] = "yes"
+                            # print("updated srv result:", srv)
+                            # print([fs_hit])
+                            # print("============================================================\n")
+                            return [fs_hit]
+                        # elif "curated_fs" in fs_hit and (float(hsp_bitscore) < float(pass_eval)):
+                        #     print("=======SAME; FS FOUND BUT NO SNP (LOOSE PROTEIN HIT; WE DON'T WANT THESE????)=======")
+                        # #     # print("hsp bitscore:", hsp_bitscore, "| pass bitscore:", pass_eval, "\n")
+                        #     fs_hit["query_def"] = fs_hit["query_def"] + hit_id
+                        #     print("fs query def:", fs_hit["query_def"])
+                        #     print("srv query def:", srv["query_def"])
+                        #     print([fs_hit])
+                        # #     # print("old srv result:", srv, "\n")
+                        # #     # srv["fs_bump"] = "yes"
+                        # #     # print("updated srv result:", srv)                        
+                        #     print("=================================================================================\n")
