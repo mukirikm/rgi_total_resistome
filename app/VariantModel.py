@@ -58,7 +58,6 @@ class Variant(MutationsModule):
 						for alignment in blastn_record.alignments:	
 							align_title = alignment.title
 							model_type_id = self.extract_nth_bar(align_title, 0)
-							# logger.info("model_type_id: {} ".format(model_type_id))
 							space_pos = align_title.index(' ')
 							hit_id = align_title[0:space_pos]
 							hit_id = hit_id.encode('ascii','replace')
@@ -67,7 +66,6 @@ class Variant(MutationsModule):
 							model_id = model_descrpt[0:underscore_in_MD]
 							seq_in_model = model_descrpt[underscore_in_MD+1: model_descrpt.index(' ')]
 							pass_value = self.extract_nth_bar(alignment.title, 1)
-							# logger.info("pass_value: {}".format(pass_value))
 							
 							if model_type_id == 40293 and "Frameshift: None" not in align_title:
 								try:
@@ -101,31 +99,31 @@ class Variant(MutationsModule):
 
 									card_dna_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["dna_sequence"]["sequence"]
 
-									fs_result.append(self.frameshift(fs_dict_list, hsp.query, hsp.sbjct, card_dna_ref, bnquery_def))
+									fs_result.append(self.frameshift(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, fs_dict_list=fs_dict_list))
 
 							elif model_type_id == 40293 and "Frameshift: None" in align_title:
-								fs_result.append({"query_def": bnquery_def})
-							elif model_type_id != 40293: # anything but PVMs... don't have a fix for this yet, lol
 								fs_result.append({"query_def": bnquery_def})
 					else:
 						fs_result.append({"query_def": bnquery_def})
 				
 		except FileNotFoundError as e:
 			fs_result = None
-			logger.info("Skipping frameshift search...")
+			logger.info("Skipping PVM frameshift search...")
 			pass
 
 		with open(self.xml_file, 'r') as result_handle:
 			blast_records = NCBIXML.parse(result_handle)
 			for blast_record in blast_records:
-				bpquery_def = blast_record.query
-
 				perfect = {}
 				strict = {}
 				loose = {}
+
+				## filter fs_result to only entries matching this blast_record's query
+				bpquery_def = blast_record.query
+				fs_result_filtered = [f for f in fs_result if f["query_def"].split()[0] in bpquery_def] if fs_result else None
+		
 				for alignment in blast_record.alignments:
 					align_title = alignment.title
-					# print(align_title)
 					orf_info = blast_record.query.encode('ascii','replace')
 					c = 0
 					barc = 0
@@ -190,7 +188,6 @@ class Variant(MutationsModule):
                                 {"original": original_change[0], "change": original_change[-1], "position": position})
 
 						for hsp in alignment.hsps:
-							# print(bpquery_def)
 							query_seq =  hsp.query.replace('-', '')
 							real_query_length = len(query_seq)
 							sbjct_seq = hsp.sbjct.replace('-', '')
@@ -200,14 +197,11 @@ class Variant(MutationsModule):
 								predicted_genes_dict_protein, submitted_proteins_dict, snp_dict_list, real_sbjct_length, 
 								hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info, bpquery_def
 								):
-								if fs_result is not None: # find a more elegant way to put this?
-									mm_output = self.consolidate_mutations(self.input_type, srv_result, hit_id.decode(), fs_result, hsp.bits, true_pass_evalue)
-								else:
-									mm_output = self.consolidate_mutations(self.input_type, srv_result, hit_id.decode(), hsp.bits, true_pass_evalue)
+								mm_output = self.consolidate_mutations(self.input_type, hit_id.decode(), srv=srv_result, fs=fs_result_filtered, hsp_bitscore=hsp.bits, pass_val=true_pass_evalue)
 
-								if mm_output:
-									for loaded_snp in mm_output:
-										try:
+								try:
+									if mm_output:
+										for loaded_snp in mm_output:
 											if float(hsp.bits) >= float(true_pass_evalue): # if the hit passes its bitscore cut off (but isn't perfect)
 												""" Strict hits """
 												sinsidedict = {}
@@ -425,15 +419,14 @@ class Variant(MutationsModule):
 													hit_id.decode(), init)] = slinsidedict
 
 												init += 1
-											# print(slinsidedict)
 
-										except Exception as e:
-											traceback.print_exc() # for karyn
-											logger.warning("Exception : {} -> {} -> Model({})".format(type(e), e, model_id))
-											logger.warning("{} ---> hsp.bits: {} {} ? {}".format(json_data[model_id]["model_name"],hsp.bits,type(hsp.bits), type(true_pass_evalue)))
+								except Exception as e:
+									traceback.print_exc() # for karyn
+									logger.warning("Exception : {} -> {} -> Model({})".format(type(e), e, model_id))
+									logger.warning("{} ---> hsp.bits: {} {} ? {}".format(json_data[model_id]["model_name"],hsp.bits,type(hsp.bits), type(true_pass_evalue)))
 								else:
 									pass
 				blastResults = self.results(
 					blastResults, blast_record.query, perfect, strict , loose, self.include_nudge)
-				# print(blastResults)
+
 			return blastResults

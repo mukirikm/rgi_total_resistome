@@ -69,7 +69,7 @@ class MutationsModule(BaseModel):
                     pos) - hsp_sbjct_start + self.find_num_dash(hsp_sbjct, (int(pos) - hsp_sbjct_start))
                 srv_output["qry"] = qry
 
-                # check for Var
+                # check for Var2
                 if str(chan) == "Var":
                     # update to the change
                     chan = str(
@@ -103,7 +103,7 @@ class MutationsModule(BaseModel):
                     srv_output = {"query_def": query_def}
                     yield srv_output
 
-    def frameshift(self, fs_dict_list, hsp_query, hsp_sbjct, card_dna_ref, query_def): 
+    def frameshift(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, fs_dict_list=[]): 
         """
         Searches for frameshifts in sequences.
         """
@@ -123,18 +123,7 @@ class MutationsModule(BaseModel):
 
         # for insertions
         sbjct_codon_count = 0
-        
-        # ## grabbing curated frameshifts from blast XML (change to CARD JSON as input later?)
-        # for each_fs in fsl:
-        #     position = int(
-        #         ''.join(filter(str.isdigit, each_fs)))
-
-        #     original = (each_fs.split(
-        #         ''.join(filter(str.isdigit, each_fs))))
-            
-        #     fs_dict_list.append(
-        #         {"original_aa": original[0], "aa_position": position})
-                
+                        
         split_ref = re.findall('.'*3, card_dna_ref)
          
         if len(fs_dict_list) != 0:
@@ -241,13 +230,98 @@ class MutationsModule(BaseModel):
             # print(fs_denovo_result_HGVS)
 
             if len(fs_curated_result_HGVS) > 0 or len(fs_denovo_result_HGVS) > 0:
-                fs_result_prelim["query_def"] = query_def
+                fs_result_prelim["query_def"] = str(query_def)
                 if len(fs_curated_result_HGVS) > 0:
-                    fs_result_prelim["curated_fs"] = fs_curated_list_reg
+                    fs_result_prelim["curated_fs"] = fs_curated_result_HGVS
                 if len(fs_denovo_result_HGVS) > 0:
-                    fs_result_prelim["denovo_fs"] = fs_denovo_list_reg
+                    fs_result_prelim["denovo_fs"] = fs_denovo_result_HGVS
             else:
-                fs_result_prelim["query_def"] = query_def
+                fs_result_prelim["query_def"] = str(query_def)
+
+            return fs_result_prelim
+        
+        else: ## homologs
+            """for nucleotide deletions """            
+            ### isolate the position of the gap(s) and the affected codon(s)
+            if "-" in hsp_query:
+                ## split the query sequence into a list of codons
+                split_qry = re.findall('.'*3, hsp_query)
+                stripped_qry = hsp_query.replace("-", "")
+
+                ## translate the query sequence into a protein (seq stripped of gaps because Seq hates them)
+                translated_stripped_qry = str(Seq(stripped_qry).translate(table=11))
+
+                ## iterate through query codon list, find gaps, note position, and grab all relevant information
+                for qry_codons in split_qry:
+                    if "-" in qry_codons:
+                        qry_codon_count += 1 # index starts at 1 not 0
+
+                        if qry_codon_count <= len(translated_stripped_qry):
+                            aa_pos, affected_codon, corr_aa, translated_codon = self.single_fs(qry_codon_count, translated_stripped_qry, split_ref)
+                            fs_ter = self.termination(translated_stripped_qry, aa_pos)
+
+                            for _ in fs_curated_list_reg:
+                                if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list_reg and ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_denovo_list_reg:
+                                    # logger.info("novel del fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
+                                    # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": qry_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
+                                    # fs_denovo_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
+                                    fs_denovo_list_reg.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
+                                    fs_denovo_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
+                        else:
+                            if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list_reg:
+                                # logger.info("novel del fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
+                                # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": qry_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
+                                # fs_denovo_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
+                                fs_denovo_list_reg.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
+                                fs_denovo_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
+
+                    ## for any other nucleotide in the sequence DO NOT COMMENT OUT
+                    else:
+                        qry_codon_count += 1
+
+            """for nuclzeotide insertions"""
+            ### isolate the position of the gap(s) and the affected codon(s)
+            if "-" in hsp_sbjct:
+                ## split the subject sequence into a list of codons
+                split_sbjct = re.findall('.'*3, hsp_sbjct)
+                stripped_sbjct = hsp_sbjct.replace("-", "")
+                
+                ## translate the subject sequence into a protein (seq stripped of gaps because Seq hates them)
+                translated_stripped_sbjct = str(Seq(stripped_sbjct).translate(table=11, gap="-"))
+
+                ## iterate through subject codon list, find gaps, note position, and grab all relevant information
+                for sbjct_codons in split_sbjct:
+                    if "-" in sbjct_codons:
+                        sbjct_codon_count += 1 # index starts at 1 not 0
+                        
+                        if sbjct_codon_count <= len(translated_stripped_sbjct):
+                            aa_pos, affected_codon, corr_aa, translated_codon = self.single_fs(sbjct_codon_count, translated_stripped_sbjct, split_ref)
+                            fs_ter = self.termination(translated_stripped_sbjct, aa_pos)
+
+                        if len(fs_curated_list_reg) != 0:
+                            for _ in fs_curated_list_reg:
+                                if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list_reg:
+                                    # logger.info("novel ins fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
+                                    # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": sbjct_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
+                                    # fs_denovo_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
+                                    fs_denovo_list_reg.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
+                                    fs_denovo_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
+                        else:
+                            if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list_reg:
+                                # logger.info("novel ins fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
+                                # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": sbjct_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
+                                # fs_denovo_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
+                                fs_denovo_list_reg.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
+                                fs_denovo_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
+                    else:
+                        sbjct_codon_count += 1   
+
+            if len(fs_denovo_result_HGVS) > 0:
+                fs_result_prelim["query_def"] = str(query_def)
+                if len(fs_denovo_result_HGVS) > 0:
+                    fs_result_prelim["denovo_fs"] = fs_denovo_result_HGVS
+            else:
+                fs_result_prelim["query_def"] = str(query_def)
 
             return fs_result_prelim
 
@@ -274,54 +348,48 @@ class MutationsModule(BaseModel):
         
         return aa_count + 1
 
-    def consolidate_mutations(self, input_type, srv, hit_id, fs=None, hsp_bitscore=None, pass_eval=None):
-        if input_type == "protein": # CASE 1: if the input is a protein there won't be a BLASTN xml generated, thus, no frameshift output
-            # logger.info("no frameshift result generated (protein input); only SNV result exists")
-            # print("protein input srv result:", [srv], "\n")
+    def consolidate_mutations(self, input_type, hit_id, srv=None, fs=None, phm=None, hsp_bitscore=None, pass_val=None):
+        # protein input
+        if input_type == "protein" and srv is not None:  # CASE 1: if the input is a protein there won't be a BLASTN xml generated
             return [srv]
-        else:   
+
+        # nucleotide input
+        else:
+            if not fs:
+                return []
+            
             for fs_hit in fs:
-                if "query_snps" in srv: # SNPs were found
-                    if fs_hit["query_def"] in srv["query_def"]:
-                        if "curated_fs" not in fs_hit and "denovo_fs" not in fs_hit: # CASE 1 (only SNP)
-                            # print("===================ONLY SNP===================")
-                            # # # print("srv hit:", srv)
-                            # # # print("fs hit:", fs_hit)
-                            # print([srv])
-                            # print("==============================================\n")
-                            return [srv]
+                fs_id = fs_hit["query_def"].split()[0]
+                has_fs = any(x in fs_hit for x in ("curated_fs", "denovo_fs"))  ## PHMs will only have de novo frameshifts 
+                                                                                ## (nothing is curated for them right now)
+                passes_eval = float(hsp_bitscore) >= float(pass_val)
+
+                # protein variant frameshift/SNP search
+                if srv:
+                    srv_id = srv["query_def"].split()[0]
+
+                    if "query_snps" in srv:  # If SNPs were found
+                        if fs_id in srv_id:
+                            if not has_fs:  # CASE 1 (only SNP)
+                                return [srv]
+                            else:  # CASE 2 (SNP and frameshift)
+                                return [srv | fs_hit]
                             
-                        elif "curated_fs" in fs_hit or "denovo_fs" in fs_hit: # CASE 2
-                            # print("=======SAME; SNP AND FS FOUND=======")
-                            # # print("fs query def:", fs_hit["query_def"])
-                            # # print("srv query def:", srv["query_def"])
-                            # print(fs_hit)
-                            # print([srv | fs_hit])
-                            # print("====================================\n")   
-                            return [srv | fs_hit]
-                        
-                else: # CASE 3--SNPs were not found in any HSPs with SNP in the alignment title
-                    if fs_hit["query_def"] in srv["query_def"]:
-                        if "curated_fs" in fs_hit and (float(hsp_bitscore) >= float(pass_eval)):
-                            # print("=======SAME; FS FOUND BUT NO SNP (STRICT PROTEIN HIT)=======")
-                            # print("hsp bitscore:", hsp_bitscore, "| pass bitscore:", pass_eval, "\n")
-                            fs_hit["query_def"] = fs_hit["query_def"] + hit_id
-                            # print("fs query def:", fs_hit["query_def"])
-                            # print("srv query def:", srv["query_def"])
-                            # print("old srv result:", srv, "\n")
-                            # srv["fs_bump"] = "yes"
-                            # print("updated srv result:", srv)
-                            # print([fs_hit])
-                            # print("============================================================\n")
+                    else:  # CASE 3: frameshift found; SNPs were not found in any HSPs with SNP in the alignment title
+                        if fs_id in srv_id:
+                            if passes_eval and "curated_fs" in fs_hit:  # Strict alignments
+                                fs_hit["query_def"] += hit_id
+                                return [fs_hit]
+                            else:  # Loose alignments
+                                fs_hit["query_def"] += hit_id
+                                return [fs_hit]
+                                
+                # protein homolog frameshift search               
+                if phm:
+                    phm_id = phm["query_def"].split()[0]
+                
+                    if fs_id in phm_id:
+                        # Perfect PHMs will not have frameshifts in them, so there's no need to add unique support for them here
+                        if has_fs and passes_eval: 
+                            fs_hit["query_def"] += hit_id
                             return [fs_hit]
-                        # elif "curated_fs" in fs_hit and (float(hsp_bitscore) < float(pass_eval)):
-                        #     print("=======SAME; FS FOUND BUT NO SNP (LOOSE PROTEIN HIT; WE DON'T WANT THESE????)=======")
-                        # #     # print("hsp bitscore:", hsp_bitscore, "| pass bitscore:", pass_eval, "\n")
-                        #     fs_hit["query_def"] = fs_hit["query_def"] + hit_id
-                        #     print("fs query def:", fs_hit["query_def"])
-                        #     print("srv query def:", srv["query_def"])
-                        #     print([fs_hit])
-                        # #     # print("old srv result:", srv, "\n")
-                        # #     # srv["fs_bump"] = "yes"
-                        # #     # print("updated srv result:", srv)                        
-                        #     print("=================================================================================\n")

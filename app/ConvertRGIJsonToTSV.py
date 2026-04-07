@@ -272,17 +272,31 @@ class ConvertJsonToTSV(object):
                                             else:
                                                 denovo_frameshifts = "n/a"
 
-                                    if not curated_frameshifts and not denovo_frameshifts:
+                                    else:
                                         curated_frameshifts = "n/a"
                                         denovo_frameshifts = "n/a"
 
                                 elif rgi_data[hsp][hit]["model_type_id"] == 40292: # protein homolog model
                                     best_snps = "n/a"
                                     other_snps = "n/a"
-                                    curated_frameshifts = "n/a"
-                                    denovo_frameshifts = "n/a"
+
                                 if not other_snps:
                                     other_snps = "n/a"
+
+                                ## frameshifts
+                                if "curated_fs" in rgi_data[hsp][ordered[0]] or "denovo_fs" in rgi_data[hsp][ordered[0]]:
+                                    for x in rgi_data[hsp].values():
+                                        if "curated_fs" in x.keys() and x["curated_fs"] != "n/a":
+                                            curated_frameshifts = ', '.join(x["curated_fs"])
+                                        else:
+                                            curated_frameshifts = "n/a"
+                                        if "denovo_fs" in x.keys() and x["denovo_fs"] != "n/a":
+                                            denovo_frameshifts = ', '.join(x["denovo_fs"])
+                                        else:
+                                            denovo_frameshifts = "n/a"  
+                                else:
+                                    curated_frameshifts = "n/a"
+                                    denovo_frameshifts = "n/a"
 
                                 if rgi_data[hsp][hit]["model_type_id"] in [40295]: # rRNA gene variant model
                                     percentage_length_reference_sequence = format((abs(orf_end - orf_start) /
@@ -404,15 +418,28 @@ class ConvertJsonToTSV(object):
                                             else:
                                                 denovo_frameshifts = "n/a"  
 
-                                    if not curated_frameshifts and not denovo_frameshifts:
+                                    else:
                                         curated_frameshifts = "n/a"
                                         denovo_frameshifts = "n/a"
                                                        
                                 elif rgi_data[hsp][hit]["model_type_id"] == 40292: # protein homolog model
                                     best_snps = "n/a"
                                     other_snps = "n/a"
-                                    curated_frameshifts = "n/a"
-                                    denovo_frameshifts = "n/a"
+
+                                    ## frameshifts
+                                    if "curated_fs" in rgi_data[hsp][ordered[0]] or "denovo_fs" in rgi_data[hsp][ordered[0]]:
+                                        for x in rgi_data[hsp].values():
+                                            if "curated_fs" in x.keys() and x["curated_fs"] != "n/a":
+                                                curated_frameshifts = ', '.join(x["curated_fs"])
+                                            else:
+                                                curated_frameshifts = "n/a"
+                                            if "denovo_fs" in x.keys() and x["denovo_fs"] != "n/a":
+                                                denovo_frameshifts = ', '.join(x["denovo_fs"])
+                                            else:
+                                                denovo_frameshifts = "n/a"  
+                                    else:
+                                        curated_frameshifts = "n/a"
+                                        denovo_frameshifts = "n/a"
 
                                 match_dict[hsp] = [hsp, "", "", "", "",
                                                    rgi_data[hsp][ordered[0]
