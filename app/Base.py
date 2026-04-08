@@ -69,7 +69,7 @@ class BaseModel(object):
 
         # rebuild the string and extract the hit information after colon
         result = temporary_str[temporary_str.find(':')+2:]
-        result = result.rstrip()
+        result = result.strip()
 
         # check if integer first
         if result.isdigit():
