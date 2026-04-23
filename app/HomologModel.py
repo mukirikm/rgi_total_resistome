@@ -93,7 +93,9 @@ class Homolog(MutationsModule):
 
                 ## filter fs_result to only entries matching this blast_record's query
                 bpquery_def = blast_record.query
-                fs_result_filtered = [f for f in fs_result if f["query_def"].split()[0] in bpquery_def] if fs_result else None
+                fs_result_filtered = [
+					f for f in fs_result 
+					if f["query_def"].split()[0] in bpquery_def] if fs_result else None
 
                 for alignment in blast_record.alignments:
                     alignTitle = alignment.title

@@ -102,9 +102,9 @@ class Variant(MutationsModule):
 									fs_result.append(self.frameshift(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, fs_dict_list=fs_dict_list))
 
 							elif model_type_id == 40293 and "Frameshift: None" in align_title:
-								fs_result.append({"query_def": bnquery_def})
+								fs_result.append({"query_def": bnquery_def, "has_fs": False})
 					else:
-						fs_result.append({"query_def": bnquery_def})
+						fs_result.append({"query_def": bnquery_def, "has_fs": False})
 				
 		except FileNotFoundError as e:
 			fs_result = None
@@ -120,7 +120,9 @@ class Variant(MutationsModule):
 
 				## filter fs_result to only entries matching this blast_record's query
 				bpquery_def = blast_record.query
-				fs_result_filtered = [f for f in fs_result if f["query_def"].split()[0] in bpquery_def] if fs_result else None
+				fs_result_filtered = [
+					f for f in fs_result 
+					if f["query_def"].split()[0] in bpquery_def] if fs_result else None
 		
 				for alignment in blast_record.alignments:
 					align_title = alignment.title
@@ -194,8 +196,8 @@ class Variant(MutationsModule):
 							real_sbjct_length = len(sbjct_seq)
 
 							for srv_result in self.single_resistance_variant(
-								predicted_genes_dict_protein, submitted_proteins_dict, snp_dict_list, real_sbjct_length, 
-								hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info, bpquery_def
+								"PVM", snp_dict_list, real_sbjct_length, hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info, bpquery_def, 
+								pred_genes_dict_prot=predicted_genes_dict_protein, sub_prot_dict=submitted_proteins_dict,
 								):
 								mm_output = self.consolidate_mutations(self.input_type, hit_id.decode(), srv=srv_result, fs=fs_result_filtered, hsp_bitscore=hsp.bits, pass_val=true_pass_evalue)
 
