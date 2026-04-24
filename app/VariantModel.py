@@ -196,8 +196,8 @@ class Variant(MutationsModule):
 							real_sbjct_length = len(sbjct_seq)
 
 							for srv_result in self.single_resistance_variant(
-								"PVM", snp_dict_list, real_sbjct_length, hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info, bpquery_def, 
-								pred_genes_dict_prot=predicted_genes_dict_protein, sub_prot_dict=submitted_proteins_dict,
+								"PVM", snp_dict_list, hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info, bpquery_def, 
+								pred_genes_dict_prot=predicted_genes_dict_protein, sub_prot_dict=submitted_proteins_dict, real_sbjct_length=real_sbjct_length
 								):
 								mm_output = self.consolidate_mutations(self.input_type, hit_id.decode(), srv=srv_result, fs=fs_result_filtered, hsp_bitscore=hsp.bits, pass_val=true_pass_evalue)
 

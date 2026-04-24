@@ -24,10 +24,10 @@ class MutationsModule(BaseModel):
         """         
         return "Mutation({}".format(self.__dict__)
 
-    def single_resistance_variant(self, detection_mode,  snp_dict_list, 
-                                  real_sbjct_length, hsp_query, hsp_sbjct_start, hsp_sbjct, orf_info, query_def,
+    def single_resistance_variant(self, detection_mode,  snp_dict_list, hsp_query, 
+                                  hsp_sbjct_start, hsp_sbjct, orf_info, query_def,
                                   pred_genes_dict_prot=None, sub_prot_dict=None, hsp_query_start=None, 
-                                  hsp_query_end=None, hsp_sbjct_end=None, real_qry_length=None, strand=None) : 
+                                  hsp_query_end=None, hsp_sbjct_end=None, real_qry_length=None, real_sbjct_length=None, strand=None) : 
         """
         Searches for SNVs in sequences.
         """
@@ -105,23 +105,23 @@ class MutationsModule(BaseModel):
                                       "has_snp": False}
                         yield srv_output
 
-            # if detection_mode == "POM":
-            #     orf_protein_sequence = ""
+            if detection_mode == "POM":
+                if hsp_sbjct_start < int(pos) and (hsp_sbjct_start + real_qry_length) > int(pos):
+                    """Checks if there is a mutation."""
+                    # logger.debug("Mutation check")
+                    qry = int(
+                        pos) - hsp_sbjct_start + self.find_num_dash(hsp_sbjct, (int(pos) - hsp_sbjct_start))
+                    sbj = int(
+                        pos) - hsp_sbjct_start + self.find_num_dash(hsp_sbjct, (int(pos) - hsp_sbjct_start))
 
-            #     if pred_genes_dict_prot:
-            #         if orf_info.strip() in pred_genes_dict_prot.keys():
-            #             orf_protein_sequence = str(
-            #                 Seq(pred_genes_dict_prot[orf_info.decode()]).translate(table=11)).strip("*")
-            #         else:
-            #             orf_protein_sequence = str(Seq(pred_genes_dict_prot[orf_info.decode(
-            #             )[:orf_info.decode().index(' # ')]]).translate(table=11)).strip("*")
-
-            #     if sub_prot_dict:
-            #         orf_protein_sequence = str(
-            #             sub_prot_dict[orf_info.decode().split(" ")[0]])
-
-            #     if hsp_sbjct_start < int(pos) and (hsp_sbjct_start + real_qry_length) > int(pos):
-            #         """Checks if there is a mutation."""
+                    if hsp_query[qry] == chan:
+                        # logger.debug("Mutation detected")
+                        srv_output["eachs"] = eachs
+                        srv_output["has_snp"] = True
+                        yield srv_output
+                    else:
+                        srv_output["has_snp"] = False
+                        yield srv_output
 
             if detection_mode == "RGV":
                 srv_output["eachs"] = eachs
@@ -237,7 +237,6 @@ class MutationsModule(BaseModel):
                     else:
                         qry_codon_count += 1
                 
-            # try:
             """for nucleotide insertions"""
             ### isolate the position of the gap(s) and the affected codon(s)
             if "-" in hsp_sbjct:
@@ -284,13 +283,6 @@ class MutationsModule(BaseModel):
                     else:
                         sbjct_codon_count += 1   
 
-            # except Exception as e:
-            #     traceback.print_exc()
-            # print(fs_curated_list_reg)
-            # print(fs_curated_result_HGVS)
-            # print(fs_denovo_list_reg)
-            # print(fs_denovo_result_HGVS)
-
             fs_result_prelim["query_def"] = str(query_def)
 
             if len(fs_curated_result_HGVS) > 0 or len(fs_denovo_result_HGVS) > 0:
@@ -304,7 +296,8 @@ class MutationsModule(BaseModel):
 
             return fs_result_prelim
         
-        else: ## homologs
+        ## homologs
+        else: 
             """for nucleotide deletions """            
             ### isolate the position of the gap(s) and the affected codon(s)
             if "-" in hsp_query:
@@ -382,10 +375,11 @@ class MutationsModule(BaseModel):
 
             if len(fs_denovo_result_HGVS) > 0:
                 fs_result_prelim["query_def"] = str(query_def)
-                if len(fs_denovo_result_HGVS) > 0:
-                    fs_result_prelim["denovo_fs"] = fs_denovo_result_HGVS
+                fs_result_prelim["denovo_fs"] = fs_denovo_result_HGVS
+                fs_result_prelim["has_fs"] = True
             else:
                 fs_result_prelim["query_def"] = str(query_def)
+                fs_result_prelim["has_fs"] = False
 
             return fs_result_prelim
 
@@ -432,7 +426,6 @@ class MutationsModule(BaseModel):
                 has_curated_fs = "curated_fs" in fs_hit
                 has_denovo_fs = "denovo_fs" in fs_hit  ## PHMs will only have de novo frameshifts
                                                        ## (nothing is curated for them right now)
-                # has_fs = any(x in fs_hit for x in ("curated_fs", "denovo_fs"))   
                                                                                 
                 passes_eval = float(hsp_bitscore) >= float(pass_val)
 
@@ -455,15 +448,16 @@ class MutationsModule(BaseModel):
                                     return [fs_hit]
                                 elif not passes_eval and has_curated_fs:  # Loose alignments
                                     fs_hit["query_def"] += hit_id
-                                    # return []
+
                             return[]
                                 
                 # protein homolog frameshift search               
                 if phm:
                     phm_id = phm["query_def"].split()[0]
                 
-                    if fs_id in phm_id:
+                    if fs_id in phm_id and has_denovo_fs and passes_eval:
                         # Perfect PHMs will not have frameshifts in them, so there's no need to add unique support for them here
-                        if has_denovo_fs and passes_eval: 
-                            fs_hit["query_def"] += hit_id
-                            return [fs_hit]
+                        fs_hit["query_def"] += hit_id
+                        return [fs_hit]
+                    
+                    return []

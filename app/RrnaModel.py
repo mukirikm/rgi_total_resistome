@@ -109,8 +109,8 @@ class Rrna(MutationsModule):
                                 hsp.sbjct_end, hsp.sbjct_start)
                             
                             for srv_result in self.single_resistance_variant(
-								"RGV", snp_dict_list, real_sbjct_length, hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info, bpquery_def, 
-                                hsp_query_start=hsp.query_start, hsp_query_end=hsp.query_end, real_qry_length=real_query_length, strand=strand
+								"RGV", snp_dict_list, hsp.query, hsp.sbjct_start, hsp.sbjct, orf_info, bpquery_def, 
+                                hsp_query_start=hsp.query_start, hsp_query_end=hsp.query_end, real_qry_length=real_query_length, real_sbjct_length=real_sbjct_length, strand=strand
 								):
                                     try:
                                         if float(hsp.bits) >= float(true_pass_evalue):
