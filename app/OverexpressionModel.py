@@ -7,11 +7,12 @@ from Bio.Seq import Seq
 class Overexpression(MutationsModule):
     """Class for overexpression searches."""
 
-    def __init__(self, input_type, loose, input_sequence, xml_file, working_directory, local_database=False, include_nudge=False):
+    def __init__(self, input_type, loose, input_sequence, xml_file, dna_xml_file, working_directory, local_database=False, include_nudge=False):
         self.input_type = input_type
         self.loose = loose
         self.input_sequence = input_sequence
         self.xml_file = xml_file
+        self.dna_xml_file = dna_xml_file
         self.output = {}
         self.working_directory = working_directory
 
@@ -50,6 +51,71 @@ class Overexpression(MutationsModule):
         with open(os.path.join(self.data, "card.json")) as json_file:
             json_data = json.load(json_file)
 
+        try:
+            with open(self.dna_xml_file, 'r') as blastn_result_handle:
+                blastn_records = NCBIXML.parse(blastn_result_handle)
+                fs_result = []
+
+                for blastn_record in blastn_records:
+                    bnquery_def = blastn_record.query
+                    if blastn_record.alignments:
+                        for alignment in blastn_record.alignments:	
+                            align_title = alignment.title
+                            model_type_id = self.extract_nth_bar(align_title, 0)
+                            space_pos = align_title.index(' ')
+                            hit_id = align_title[0:space_pos]
+                            hit_id = hit_id.encode('ascii','replace')
+                            model_descrpt = align_title[align_title.index(' ')+1:]
+                            underscore_in_MD = model_descrpt.index('_')
+                            model_id = model_descrpt[0:underscore_in_MD]
+                            seq_in_model = model_descrpt[underscore_in_MD+1: model_descrpt.index(' ')]
+                            pass_value = self.extract_nth_bar(alignment.title, 1)
+                            
+                            if model_type_id == 41091 and "Frameshift: None" not in align_title:
+                                try:
+                                    true_pass_evalue = float(pass_value)
+                                except ValueError:
+                                    true_pass_evalue = float(
+                                        pass_value[0:pass_value.find(' ')])
+
+                                fsl = []
+                                fs_dict_list = []
+                                
+                                evalue_fs = self.extract_nth_bar(align_title, 2)
+                                fsl = evalue_fs.split(',')
+
+                                ## grabbing curated frameshifts from blast XML (change to CARD JSON as input later?)
+                                for each_fs in fsl:
+                                    position = int(
+                                        ''.join(filter(str.isdigit, each_fs)))
+
+                                    original = (each_fs.split(
+                                        ''.join(filter(str.isdigit, each_fs))))
+                                    
+                                    fs_dict_list.append(
+                                        {"original_aa": original[0], "aa_position": position})
+                                                                    
+                                for hsp in alignment.hsps:
+                                    query_seq =  hsp.query.replace('-', '')
+                                    real_query_length = len(query_seq)
+                                    sbjct_seq = hsp.sbjct.replace('-', '')
+                                    real_sbjct_length = len(sbjct_seq)
+
+                                    card_dna_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["dna_sequence"]["sequence"]
+
+                                    fs_result.append(self.frameshift(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, fs_dict_list=fs_dict_list))
+
+                            elif model_type_id == 41091 and "Frameshift: None" in align_title:
+                                fs_result.append({"query_def": bnquery_def, "has_fs": False})
+
+                    else:
+                        fs_result.append({"query_def": bnquery_def, "has_fs": False})
+                
+        except FileNotFoundError as e:
+            fs_result = None
+            logger.info("Skipping PVM frameshift search...")
+            pass
+
         with open(self.xml_file, 'r') as result_handle:
             blast_records = NCBIXML.parse(result_handle)
             for blast_record in blast_records:
@@ -59,7 +125,9 @@ class Overexpression(MutationsModule):
 
                 ## filter fs_result to only entries matching this blast_record's query
                 bpquery_def = blast_record.query
-				# fs_result_filtered = [f for f in fs_result if f["query_def"].split()[0] in bpquery_def] if fs_result else None
+                fs_result_filtered = [
+                    f for f in fs_result 
+                    if f["query_def"].split()[0] in bpquery_def] if fs_result else None
 
                 for alignment in blast_record.alignments:
 
@@ -144,14 +212,23 @@ class Overexpression(MutationsModule):
                                 orf_protein_sequence = str(
                                     submitted_proteins_dict[orfInfo.decode().split(" ")[0]])
                                 
-                            srv_results = list(self.single_resistance_variant(
-								"POM", snpdictlist, hsp.query, hsp.sbjct_start, hsp.sbjct, orfInfo, bpquery_def, 
+                            for srv_result in self.single_resistance_variant(
+	                            "POM", snpdictlist, hsp.query, hsp.sbjct_start, hsp.sbjct, orfInfo, bpquery_def, 
 								pred_genes_dict_prot=predicted_genes_dict, sub_prot_dict=submitted_proteins_dict, real_qry_length=realQueryLength
-								))  # the MM checks whether or not there's a match between the SNPs in snpdictlist and the current HSP (can be True or False)
+                            ):
+                                mm_output = list(self.consolidate_mutations(
+									self.input_type, 
+                                    hitid.decode(), 
+									model_type="pom", 
+                                    srv=srv_result, 
+                                    fs=fs_result_filtered, 
+                                    hsp_bitscore=hsp.bits, 
+                                    pass_val=pass_bitscore
+                                    ))
                             
                             try:
-                                matched_snps = [s for s in srv_results
-                                                if s.get("has_snp", False)]  # here, we isolate the srv_results that actually have SNPs
+                                matched_snps = [m for m in mm_output
+                                                if m.get("has_snp", False)]  # here, we isolate the srv_results that actually have SNPs
                                 passes_eval = float(hsp.bits) >= float(pass_bitscore)
 
                                 if card_sequence.upper() == orf_protein_sequence.upper():

@@ -70,7 +70,7 @@ class Filter(BaseModel):
                         obj = Homolog(self.input_type, self.loose, self.input_sequence, self.xml_file, self.dna_xml_file,
                                     self.working_directory, self.rgi_obj.local_database, self.rgi_obj.include_nudge)
                     if model_type == "overexpression":
-                        obj = Overexpression(self.input_type, self.loose, self.input_sequence, self.xml_file,
+                        obj = Overexpression(self.input_type, self.loose, self.input_sequence, self.xml_file, self.dna_xml_file,
                                             self.working_directory, self.rgi_obj.local_database, self.rgi_obj.include_nudge)
                     
                     # print("\n", obj, "\n")

@@ -74,7 +74,6 @@ class Homolog(MutationsModule):
                             
                             if modelTypeID == 40292: ## homologs don't have curated frameshifts anyway                                                                                                
                                 for hsp in alignment.hsps:
-
                                     card_dna_ref = json_data[modelID]["model_sequences"]["sequence"][seqinModel]["dna_sequence"]["sequence"]
                                     fs_result.append(self.frameshift(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def))
                 
@@ -163,6 +162,7 @@ class Homolog(MutationsModule):
                             mm_output = list(self.consolidate_mutations(
                                 self.input_type, 
                                 hitid.decode(), 
+                                model_type="phm",
                                 fs=fs_result_filtered, 
                                 phm=phm_result, 
                                 hsp_bitscore=hsp.bits, 

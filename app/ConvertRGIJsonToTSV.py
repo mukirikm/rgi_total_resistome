@@ -206,9 +206,6 @@ class ConvertJsonToTSV(object):
 
                             if len(rgi_data[hsp]) != 0:
                                 if rgi_data[hsp][hit]["model_type_id"] == 41091: # protein overexpression model
-                                    curated_frameshifts = "n/a"
-                                    denovo_frameshifts = "n/a"
-
                                     if "snp" in rgi_data[hsp][ordered[0]]:
                                         for x in rgi_data[hsp].values():
                                             if "snp" in x.keys() and x["snp"] != "n/a":
@@ -228,7 +225,22 @@ class ConvertJsonToTSV(object):
                                     else:
                                         best_snps = "n/a"
                                         other_snps = "n/a"
-                                                        
+
+                                    ## frameshifts
+                                    if "curated_fs" in rgi_data[hsp][ordered[0]] or "denovo_fs" in rgi_data[hsp][ordered[0]]:
+                                        for x in rgi_data[hsp].values():
+                                            if "curated_fs" in x.keys() and x["curated_fs"] != "n/a":
+                                                curated_frameshifts = ', '.join(x["curated_fs"])
+                                            else:
+                                                curated_frameshifts = "n/a"
+                                            if "denovo_fs" in x.keys() and x["denovo_fs"] != "n/a":
+                                                denovo_frameshifts = ', '.join(x["denovo_fs"])
+                                            else:
+                                                denovo_frameshifts = "n/a"  
+                                    else:
+                                        curated_frameshifts = "n/a"
+                                        denovo_frameshifts = "n/a"
+                       
                                 elif rgi_data[hsp][hit]["model_type_id"] in [40293, 40295]: # protein variant & rRNA gene variant models
                                     if "snp" in rgi_data[hsp][ordered[0]]:
                                         for x in rgi_data[hsp].values():
@@ -362,9 +374,6 @@ class ConvertJsonToTSV(object):
                         else: ## protein input
                             if len(rgi_data[hsp]) != 0:
                                 if rgi_data[hsp][hit]["model_type_id"] == 41091: # protein overexpression model
-                                    curated_frameshifts = "n/a"
-                                    denovo_frameshifts = "n/a"
-
                                     if "snp" in rgi_data[hsp][ordered[0]]:
                                         for x in rgi_data[hsp].values():
                                             if "snp" in x.keys() and x["snp"] != "n/a":
@@ -384,6 +393,21 @@ class ConvertJsonToTSV(object):
                                     else:
                                         best_snps = "n/a"
                                         other_snps = "n/a"
+
+                                    ## frameshifts
+                                    if "curated_fs" in rgi_data[hsp][ordered[0]] or "denovo_fs" in rgi_data[hsp][ordered[0]]:
+                                        for x in rgi_data[hsp].values():
+                                            if "curated_fs" in x.keys() and x["curated_fs"] != "n/a":
+                                                curated_frameshifts = ', '.join(x["curated_fs"])
+                                            else:
+                                                curated_frameshifts = "n/a"
+                                            if "denovo_fs" in x.keys() and x["denovo_fs"] != "n/a":
+                                                denovo_frameshifts = ', '.join(x["denovo_fs"])
+                                            else:
+                                                denovo_frameshifts = "n/a"  
+                                    else:
+                                        curated_frameshifts = "n/a"
+                                        denovo_frameshifts = "n/a"
                                                     
                                 elif rgi_data[hsp][hit]["model_type_id"] == 40293: # protein variant model
                                     if "snp" in rgi_data[hsp][ordered[0]]:
