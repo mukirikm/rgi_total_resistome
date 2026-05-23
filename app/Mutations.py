@@ -172,8 +172,6 @@ class MutationsModule(BaseModel):
         
         fs_result_prelim = {}
     
-        # fs_dict_list = []
-
         fs_curated_list_reg = []
         fs_denovo_list_reg = []
 
@@ -212,38 +210,27 @@ class MutationsModule(BaseModel):
                             fs_ter = self.termination(translated_stripped_qry, aa_pos)
 
                             for eachfs in fs_dict_list:
-                                # print(eachfs)
                                 if eachfs["original_aa"] == translated_codon and eachfs["aa_position"] == aa_pos:
 
                                     # logger.info("curated del fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
                                     # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": qry_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
 
                                     # frameshift found is added to 3 lists in 3 different ways
-                                    fs_curated_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
-                                    fs_curated_list_validation.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
-                                    fs_curated_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
+                                    fs_curated_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
+                                    fs_curated_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
+                                    fs_curated_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
                             
                             if len(fs_curated_list_reg) != 0:
                                 for _ in fs_curated_list_reg:
-                                    if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list_reg and ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_denovo_list_reg:
-
-                                        # logger.info("novel del fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
-                                        # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": qry_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
-
-                                        # frameshift found is added to 3 lists in 3 different ways
-                                        fs_denovo_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
-                                        fs_denovo_list_validation.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
-                                        fs_denovo_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
+                                    if f"{translated_codon}{aa_pos}{corr_aa}" not in fs_curated_list_reg and f"{translated_codon}{aa_pos}{corr_aa}" not in fs_denovo_list_reg:
+                                        fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
+                                        fs_denovo_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
+                                        fs_denovo_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
                             else:
-                                if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list_reg:
-
-                                    # logger.info("novel del fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
-                                    # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": qry_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
-
-                                    # frameshift found is added to 3 lists in 3 different ways
-                                    fs_denovo_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
-                                    fs_denovo_list_validation.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
-                                    fs_denovo_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
+                                if f"{translated_codon}{aa_pos}{corr_aa}" not in fs_curated_list_reg:
+                                    fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
+                                    fs_denovo_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
+                                    fs_denovo_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
 
                     ## for any other nucleotide in the sequence DO NOT COMMENT OUT
                     else:
@@ -269,37 +256,27 @@ class MutationsModule(BaseModel):
                             fs_ter = self.termination(translated_stripped_sbjct, aa_pos)
 
                             for eachfs in fs_dict_list:
-                                # print(eachfs)
                                 if eachfs["original_aa"] == translated_codon and eachfs["aa_position"] == aa_pos:
 
                                     # logger.info("curated ins fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
                                     # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": sbjct_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
 
                                     # frameshift found is added to 3 lists in 3 different ways
-                                    fs_curated_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
-                                    fs_curated_list_validation.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
-                                    fs_curated_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
+                                    fs_curated_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
+                                    fs_curated_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
+                                    fs_curated_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
                                 
                             if len(fs_curated_list_reg) != 0:
                                 for _ in fs_curated_list_reg:
-                                    if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list_reg:
-
-                                        # logger.info("novel ins fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
-                                        # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": sbjct_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
-
-                                        fs_denovo_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
-                                        fs_denovo_list_validation.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
-                                        fs_denovo_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
+                                    if f"{translated_codon}{aa_pos}{corr_aa}" not in fs_curated_list_reg:
+                                        fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
+                                        fs_denovo_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
+                                        fs_denovo_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
                             else:
-                                if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list_reg:
-
-                                    # logger.info("novel ins fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
-                                    # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": sbjct_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
-
-                                    # frameshift found is added to 3 lists in 3 different ways
-                                    fs_denovo_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
-                                    fs_denovo_list_validation.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
-                                    fs_denovo_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
+                                if f"{translated_codon}{aa_pos}{corr_aa}" not in fs_curated_list_reg:
+                                    fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
+                                    fs_denovo_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
+                                    fs_denovo_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
                     else:
                         sbjct_codon_count += 1   
 
@@ -339,26 +316,21 @@ class MutationsModule(BaseModel):
                             aa_pos, affected_codon, corr_aa, translated_codon = self.single_fs(qry_codon_count, translated_stripped_qry, split_ref)
                             fs_ter = self.termination(translated_stripped_qry, aa_pos)
 
-                            for _ in fs_curated_list_reg:
-                                if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list_reg and ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_denovo_list_reg:
+                            for _ in fs_curated_list_reg:  ## homologs don't have curated fs!! fix this!!
+                                if f"{translated_codon}{aa_pos}{corr_aa}" not in fs_curated_list_reg and f"{translated_codon}{aa_pos}{corr_aa}" not in fs_denovo_list_reg:
 
                                     # logger.info("novel del fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
                                     # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": qry_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
 
                                     # frameshift found is added to 3 lists in 3 different ways
-                                    fs_denovo_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
-                                    fs_denovo_list_validation.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
-                                    fs_denovo_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
+                                    fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
+                                    fs_denovo_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
+                                    fs_denovo_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
                         else:
-                            if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list_reg:
-
-                                # logger.info("novel del fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
-                                # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": qry_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
-
-                                # frameshift found is added to 3 lists in 3 different ways
-                                fs_denovo_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
-                                fs_denovo_list_validation.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
-                                fs_denovo_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
+                            if f"{translated_codon}{aa_pos}{corr_aa}" not in fs_curated_list_reg:
+                                fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
+                                fs_denovo_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
+                                fs_denovo_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
 
                     ## for any other nucleotide in the sequence DO NOT COMMENT OUT
                     else:
@@ -385,25 +357,20 @@ class MutationsModule(BaseModel):
 
                         if len(fs_curated_list_reg) != 0:
                             for _ in fs_curated_list_reg:
-                                if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list_reg:
+                                if f"{translated_codon}{aa_pos}{corr_aa}" not in fs_curated_list_reg:
 
                                     # logger.info("novel ins fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
                                     # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": sbjct_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
 
                                     # frameshift found is added to 3 lists in 3 different ways
-                                    fs_denovo_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
-                                    fs_denovo_list_validation.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
-                                    fs_denovo_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
+                                    fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
+                                    fs_denovo_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
+                                    fs_denovo_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
                         else:
-                            if ("%s%s%s" % (translated_codon, aa_pos, corr_aa)) not in fs_curated_list_reg:
-
-                                # logger.info("novel ins fs found: %s%s%s" % (translated_codon, aa_pos, corr_aa))
-                                # logger.info({"affected_codon": affected_codon, "translated_ref_aa": translated_codon, "ref_nucl_position": sbjct_codon_count, "aa_position": aa_pos, "new_aa": corr_aa, "stop_position": fs_ter})
-
-                                # frameshift found is added to 3 lists in 3 different ways
-                                fs_denovo_list_reg.append("%s%s%s" % (translated_codon, aa_pos, corr_aa)) ## e.g., A15A
-                                fs_denovo_list_validation.append("%s%sfs" % (translated_codon, aa_pos)) ## e.g., A15fs
-                                fs_denovo_result_HGVS.append("%s%s%sfsTer%s" % (translated_codon, aa_pos, corr_aa, fs_ter)) ## e.g., A15AfsTer9
+                            if f"{translated_codon}{aa_pos}{corr_aa}" not in fs_curated_list_reg:
+                                fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
+                                fs_denovo_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
+                                fs_denovo_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
                     else:
                         sbjct_codon_count += 1   
 
@@ -421,16 +388,124 @@ class MutationsModule(BaseModel):
 
             return fs_result_prelim
 
+    def indel(self, hsp_query, hsp_sbjct, card_dna_ref, query_def):
+        """
+        Searches for insertions and deletions in sequences.
+        Indels must be 3 nucleotides or greater to be detected. Anything else is detected by def_frameshift(). 
+        
+        Note: indels < 3 nucleotides, and handeled by def_frameshift(), do not necessarily result in a frameshift.
+
+        https://hgvs-nomenclature.org/stable/recommendations/protein/insertion/
+        Insertion: a sequence change between the translation initiation (start) and termination (stop) codon where, compared to the reference sequence, one or more amino acids are inserted, which is not a frameshift and where the insertion is not a copy of a sequence immediately N-terminal (5').
+        """
+        
+        # for deletions
+        qry_codon_count = 0
+
+        # for insertions
+        sbjct_codon_count = 0
+
+        # indel_curated_list_reg = []
+        indel_denovo_list_reg = []
+
+        # indel_curated_list_validation = []
+        indel_denovo_list_validation = []
+
+        # indel_curated_result_HGVS = []
+        indel_denovo_result_HGVS = []
+
+        indel_result_prelim = {}
+                        
+        split_ref = re.findall('.'*3, card_dna_ref)
+
+        """ deletions """            
+        ### isolate the position of the indel and the affected codons (plus flanking codons)
+        if "-" in hsp_query:
+            ## split the query sequence into a list of codons
+            split_qry = re.findall('.'*3, hsp_query)
+            stripped_qry = hsp_query.replace("-", "")
+
+            ## translate the query sequence into a protein (seq stripped of gaps because Seq hates them)
+            translated_stripped_qry = str(Seq(stripped_qry).translate(table=11))
+
+            ## iterate through query codon list, find gaps + flanks, and note position
+            while qry_codon_count < len(split_qry):  # cannot be <= here because # of items and # of indeces differ, 
+                                                     # so split_qry[3] when there are 3 items (0,1,2) will fail
+                deletion = {}
+                qry_codons = split_qry[qry_codon_count]
+
+                if "-" in qry_codons:
+                    beginning_flank = split_qry[qry_codon_count-1]
+                    deletion[qry_codon_count-1] = beginning_flank
+
+                    while qry_codon_count <= len(split_qry) and "-" in split_qry[qry_codon_count]:  # that <= may have to be a <, but i can't think straight right now
+                        current_codon = split_qry[qry_codon_count]  # snapshot of the current codon
+                        deletion[qry_codon_count] = current_codon
+                        qry_codon_count += 1  # updates our index to the NEXT codon after successfully identifying a gap
+                        
+                    if qry_codon_count < len(split_qry):
+                        ending_flank = split_qry[qry_codon_count]
+                        deletion[qry_codon_count] = ending_flank
+                        indel_denovo_result_HGVS.append(self.indel_translator(deletion, split_ref, translated_stripped_qry, indel_type = "deletion"))
+                    else:
+                        ending_flank = None
+
+                ## for any other nucleotide in the sequence DO NOT COMMENT OUT  
+                else:
+                    qry_codon_count += 1
+
+        """ insertions """
+        ### isolate the position of the indel and the affected codons (plus flanking codons)
+        if "-" in hsp_sbjct:
+            ## split the subject sequence into a list of codons
+            split_sbjct = re.findall('.'*3, hsp_sbjct)
+            stripped_sbjct = hsp_sbjct.replace("-", "")
+            
+            ## translate the subject sequence into a protein (seq stripped of gaps because Seq hates them)
+            translated_stripped_sbjct = str(Seq(stripped_sbjct).translate(table=11, gap="-"))
+
+            ## iterate through query codon list, find gaps + flanks, and note position
+            while sbjct_codon_count < len(split_sbjct):
+                insertion = {}
+                sbjct_codons = split_sbjct[sbjct_codon_count]
+
+                if "-" in sbjct_codons:
+                    sbjct_beginning_flank = split_sbjct[sbjct_codon_count-1]
+                    insertion[sbjct_codon_count-1] = sbjct_beginning_flank
+
+                    while sbjct_codon_count <= len(split_sbjct) and "-" in split_sbjct[sbjct_codon_count]:  # that <= may have to be a <, but i can't think straight right now
+                        sbjct_current_codon = split_sbjct[sbjct_codon_count]  # snapshot of the current codon
+                        insertion[sbjct_codon_count] = sbjct_current_codon
+                        sbjct_codon_count += 1  # updates our index to the NEXT codon after successfully identifying a gap
+                    if sbjct_codon_count < len(split_sbjct):
+                        sbjct_ending_flank = split_sbjct[sbjct_codon_count]
+                        insertion[sbjct_codon_count] = sbjct_ending_flank
+                        indel_denovo_result_HGVS.append(self.indel_translator(insertion, split_ref, translated_stripped_sbjct, indel_type = "insertion"))
+                    else:
+                        sbjct_ending_flank = None
+
+                ## for any other nucleotide in the sequence DO NOT COMMENT OUT  
+                else:
+                    sbjct_codon_count += 1
+
+        if len(indel_denovo_result_HGVS) > 0:
+            # you can change the output syntax here
+            indel_result_prelim["query_def"] = str(query_def)
+            indel_result_prelim["denovo_fs"] = indel_denovo_result_HGVS
+            indel_result_prelim["has_indel"] = True
+        else:
+            indel_result_prelim["query_def"] = str(query_def)
+            indel_result_prelim["has_indel"] = False
+
+        return indel_result_prelim
+
     def single_fs(self, codon_count, translated_stripped_seq, split_ref):
         aa_pos = codon_count
         affected_codon = split_ref[aa_pos - 1]
-        # print("affected codon:", affected_codon)
-        # print("trans stripped seq @ aapos:", translated_stripped_seq[aa_pos])
-        # print("aa pos:", aa_pos)
         corr_aa = translated_stripped_seq[aa_pos - 1] # index starts at 0
         translated_codon = str(Seq(affected_codon).translate(table=11))
 
-        return aa_pos, affected_codon, corr_aa, translated_codon
+        return aa_pos, affected_codon, corr_aa, translated_codon ## aa_pos is just codon_count... fix that
     
     def termination(self, translated_stripped_seq, aa_pos):
         aa_count = 0
@@ -443,8 +518,41 @@ class MutationsModule(BaseModel):
                 aa_count += 1
         
         return aa_count + 1
+    
+    def indel_translator(self, indel, split_ref, translated_stripped_seq, indel_type=None):
+        unpacked_indel = list(indel.items())
+        inordel_codons = ""
+
+        for i, (position, codon) in enumerate(unpacked_indel):  # we don't actually access codon... but you never know when you'll need it? :^)
+            if i == 0:
+                affected_codon = split_ref[position - 1]
+                original_aa = str(Seq(affected_codon).translate(table=11))
+
+                beginning_pos = position
+                beginning_flank = original_aa
+            elif i == len(unpacked_indel) - 1:
+                affected_codon = split_ref[position - 1]
+                original_aa = str(Seq(affected_codon).translate(table=11))
+
+                end_pos = position
+                end_flank = original_aa
+            else:  # everything in between the sandwich
+                new_aa = translated_stripped_seq[position - 1] # index starts at 0
+
+                inordel_codons += new_aa
+
+        if indel_type == "deletion":
+            indel = f"{beginning_flank}{beginning_pos}_{end_flank}{end_pos}del{inordel_codons}"
+            return indel
+        elif indel_type == "insertion":
+            indel = f"{beginning_flank}{beginning_pos}_{end_flank}{end_pos}ins{inordel_codons}"
+            return indel
 
     def consolidate_mutations(self, input_type, hit_id, model_type, srv=None, fs=None, phm=None, hsp_bitscore=None, pass_val=None):
+        """
+        Consolidates the results from all mutation functions and passes the output back into RGI's detection modules (PHM, PVM, POM,    RGV).
+        """
+
         has_snp = srv.get("has_snp", False) if srv is not None else False  # the PHM does not generate srv, so this avoids an AttributeError
 
         # protein input

@@ -51,6 +51,7 @@ class Variant(MutationsModule):
 			with open(self.dna_xml_file, 'r') as blastn_result_handle:
 				blastn_records = NCBIXML.parse(blastn_result_handle)
 				fs_result = []
+				indel_result = []
 
 				for blastn_record in blastn_records:
 					bnquery_def = blastn_record.query
@@ -67,7 +68,7 @@ class Variant(MutationsModule):
 							seq_in_model = model_descrpt[underscore_in_MD+1: model_descrpt.index(' ')]
 							pass_value = self.extract_nth_bar(alignment.title, 1)
 							
-							if model_type_id == 40293 and "Frameshift: None" not in align_title:
+							if model_type_id == 40293:
 								try:
 									true_pass_evalue = float(pass_value)
 								except ValueError:
@@ -99,12 +100,13 @@ class Variant(MutationsModule):
 
 									card_dna_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["dna_sequence"]["sequence"]
 
+									# fetch mutations from MM
 									fs_result.append(self.frameshift(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, fs_dict_list=fs_dict_list))
-
-							elif model_type_id == 40293 and "Frameshift: None" in align_title:
-								fs_result.append({"query_def": bnquery_def, "has_fs": False})
+									
+									indel_result.append(self.indel(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def))
 					else:
 						fs_result.append({"query_def": bnquery_def, "has_fs": False})
+						indel_result.append({"query_def": bnquery_def, "has_indel": False})
 				
 		except FileNotFoundError as e:
 			fs_result = None
