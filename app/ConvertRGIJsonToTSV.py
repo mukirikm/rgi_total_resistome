@@ -91,8 +91,10 @@ class ConvertJsonToTSV(object):
                                  "Hit_End",
                                  "Antibiotic",
                                  "AST_Source",
-                                 "Curated_Frameshifts",
-							     "De_novo_Frameshifts"
+                                 "Curated_Mutations",
+                                 "Curated_Mutation_Types",
+							     "Denovo_Mutations",
+                                 "Denovo_Mutation_Types"
                                 ])
 
                 if os.path.isfile(self.filepath):
@@ -226,20 +228,19 @@ class ConvertJsonToTSV(object):
                                         best_snps = "n/a"
                                         other_snps = "n/a"
 
-                                    ## frameshifts
-                                    if "curated_fs" in rgi_data[hsp][ordered[0]] or "denovo_fs" in rgi_data[hsp][ordered[0]]:
-                                        for x in rgi_data[hsp].values():
-                                            if "curated_fs" in x.keys() and x["curated_fs"] != "n/a":
-                                                curated_frameshifts = ', '.join(x["curated_fs"])
-                                            else:
-                                                curated_frameshifts = "n/a"
-                                            if "denovo_fs" in x.keys() and x["denovo_fs"] != "n/a":
-                                                denovo_frameshifts = ', '.join(x["denovo_fs"])
-                                            else:
-                                                denovo_frameshifts = "n/a"  
+                                    ## all other mutations
+                                    if "curated_mutations" in rgi_data[hsp][ordered[0]]:
+                                        curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
+                                        curated_types = rgi_data[hsp][ordered[0]].get("curated_mutation_types", "n/a")
                                     else:
-                                        curated_frameshifts = "n/a"
-                                        denovo_frameshifts = "n/a"
+                                        curated_mutations = "n/a"
+                                        curated_types = "n/a"
+                                    if "denovo_mutations" in rgi_data[hsp][ordered[0]]:
+                                        denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
+                                        denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
+                                    else:
+                                        denovo_mutations = "n/a"
+                                        denovo_types = "n/a"
                        
                                 elif rgi_data[hsp][hit]["model_type_id"] in [40293, 40295]: # protein variant & rRNA gene variant models
                                     if "snp" in rgi_data[hsp][ordered[0]]:
@@ -272,21 +273,19 @@ class ConvertJsonToTSV(object):
                                         best_snps = "n/a"
                                         other_snps = "n/a"
                                     
-                                    ## frameshifts
-                                    if "curated_fs" in rgi_data[hsp][ordered[0]] or "denovo_fs" in rgi_data[hsp][ordered[0]]:
-                                        for x in rgi_data[hsp].values():
-                                            if "curated_fs" in x.keys() and x["curated_fs"] != "n/a":
-                                                curated_frameshifts = ', '.join(x["curated_fs"])
-                                            else:
-                                                curated_frameshifts = "n/a"
-                                            if "denovo_fs" in x.keys() and x["denovo_fs"] != "n/a":
-                                                denovo_frameshifts = ', '.join(x["denovo_fs"])
-                                            else:
-                                                denovo_frameshifts = "n/a"
-
+                                    ## all other mutations
+                                    if "curated_mutations" in rgi_data[hsp][ordered[0]]:
+                                        curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
+                                        curated_types = rgi_data[hsp][ordered[0]].get("curated_mutation_types", "n/a")
                                     else:
-                                        curated_frameshifts = "n/a"
-                                        denovo_frameshifts = "n/a"
+                                        curated_mutations = "n/a"
+                                        curated_types = "n/a"
+                                    if "denovo_mutations" in rgi_data[hsp][ordered[0]]:
+                                        denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
+                                        denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
+                                    else:
+                                        denovo_mutations = "n/a"
+                                        denovo_types = "n/a"
 
                                 elif rgi_data[hsp][hit]["model_type_id"] == 40292: # protein homolog model
                                     best_snps = "n/a"
@@ -295,20 +294,17 @@ class ConvertJsonToTSV(object):
                                 if not other_snps:
                                     other_snps = "n/a"
 
-                                ## frameshifts
-                                if "curated_fs" in rgi_data[hsp][ordered[0]] or "denovo_fs" in rgi_data[hsp][ordered[0]]:
-                                    for x in rgi_data[hsp].values():
-                                        if "curated_fs" in x.keys() and x["curated_fs"] != "n/a":
-                                            curated_frameshifts = ', '.join(x["curated_fs"])
-                                        else:
-                                            curated_frameshifts = "n/a"
-                                        if "denovo_fs" in x.keys() and x["denovo_fs"] != "n/a":
-                                            denovo_frameshifts = ', '.join(x["denovo_fs"])
-                                        else:
-                                            denovo_frameshifts = "n/a"  
+                                ## all other mutations
+                                if "denovo_mutations" in rgi_data[hsp][ordered[0]]:
+                                    denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
+                                    denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
+                                    curated_mutations = "n/a"
+                                    curated_types = "n/a"
                                 else:
-                                    curated_frameshifts = "n/a"
-                                    denovo_frameshifts = "n/a"
+                                    denovo_mutations = "n/a"
+                                    denovo_types = "n/a"
+                                    curated_mutations = "n/a"
+                                    curated_types = "n/a"
 
                                 if rgi_data[hsp][hit]["model_type_id"] in [40295]: # rRNA gene variant model
                                     percentage_length_reference_sequence = format((abs(orf_end - orf_start) /
@@ -365,8 +361,10 @@ class ConvertJsonToTSV(object):
                                                              if rgi_data[hsp][ordered[0]]["ARO_category"][x]["category_aro_class_name"] == 'Antibiotic'),
                                                    rgi_data[hsp][ordered[0]
                                                                  ]["ast_source"],
-												   curated_frameshifts,
-												   denovo_frameshifts
+												   curated_mutations,
+                                                   curated_types,
+												   denovo_mutations,
+                                                   denovo_types
                                                    ]
                             for key, value in match_dict.items():
                                 writer.writerow(value)
@@ -394,20 +392,19 @@ class ConvertJsonToTSV(object):
                                         best_snps = "n/a"
                                         other_snps = "n/a"
 
-                                    ## frameshifts
-                                    if "curated_fs" in rgi_data[hsp][ordered[0]] or "denovo_fs" in rgi_data[hsp][ordered[0]]:
-                                        for x in rgi_data[hsp].values():
-                                            if "curated_fs" in x.keys() and x["curated_fs"] != "n/a":
-                                                curated_frameshifts = ', '.join(x["curated_fs"])
-                                            else:
-                                                curated_frameshifts = "n/a"
-                                            if "denovo_fs" in x.keys() and x["denovo_fs"] != "n/a":
-                                                denovo_frameshifts = ', '.join(x["denovo_fs"])
-                                            else:
-                                                denovo_frameshifts = "n/a"  
+                                    ## all other mutations
+                                    if "curated_mutations" in rgi_data[hsp][ordered[0]]:
+                                        curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
+                                        curated_types = rgi_data[hsp][ordered[0]].get("curated_mutation_types", "n/a")
                                     else:
-                                        curated_frameshifts = "n/a"
-                                        denovo_frameshifts = "n/a"
+                                        curated_mutations = "n/a"
+                                        curated_types = "n/a"
+                                    if "denovo_mutations" in rgi_data[hsp][ordered[0]]:
+                                        denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
+                                        denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
+                                    else:
+                                        denovo_mutations = "n/a"
+                                        denovo_types = "n/a"
                                                     
                                 elif rgi_data[hsp][hit]["model_type_id"] == 40293: # protein variant model
                                     if "snp" in rgi_data[hsp][ordered[0]]:
@@ -430,40 +427,35 @@ class ConvertJsonToTSV(object):
                                         best_snps = "n/a"
                                         other_snps = "n/a"
                                                                                             
-                                    ## frameshifts
-                                    if "curated_fs" in rgi_data[hsp][ordered[0]] or "denovo_fs" in rgi_data[hsp][ordered[0]]:
-                                        for x in rgi_data[hsp].values():
-                                            if "curated_fs" in x.keys() and x["curated_fs"] != "n/a":
-                                                curated_frameshifts = ', '.join(x["curated_fs"])
-                                            else:
-                                                curated_frameshifts = "n/a"
-                                            if "denovo_fs" in x.keys() and x["denovo_fs"] != "n/a":
-                                                denovo_frameshifts = ', '.join(x["denovo_fs"])
-                                            else:
-                                                denovo_frameshifts = "n/a"  
-
+                                    ## all other mutations
+                                    if "curated_mutations" in rgi_data[hsp][ordered[0]]:
+                                        curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
+                                        curated_types = rgi_data[hsp][ordered[0]].get("curated_mutation_types", "n/a")
                                     else:
-                                        curated_frameshifts = "n/a"
-                                        denovo_frameshifts = "n/a"
+                                        curated_mutations = "n/a"
+                                        curated_types = "n/a"
+                                    if "denovo_mutations" in rgi_data[hsp][ordered[0]]:
+                                        denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
+                                        denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
+                                    else:
+                                        denovo_mutations = "n/a"
+                                        denovo_types = "n/a"
                                                        
                                 elif rgi_data[hsp][hit]["model_type_id"] == 40292: # protein homolog model
                                     best_snps = "n/a"
                                     other_snps = "n/a"
 
-                                    ## frameshifts
-                                    if "curated_fs" in rgi_data[hsp][ordered[0]] or "denovo_fs" in rgi_data[hsp][ordered[0]]:
-                                        for x in rgi_data[hsp].values():
-                                            if "curated_fs" in x.keys() and x["curated_fs"] != "n/a":
-                                                curated_frameshifts = ', '.join(x["curated_fs"])
-                                            else:
-                                                curated_frameshifts = "n/a"
-                                            if "denovo_fs" in x.keys() and x["denovo_fs"] != "n/a":
-                                                denovo_frameshifts = ', '.join(x["denovo_fs"])
-                                            else:
-                                                denovo_frameshifts = "n/a"  
+                                    ## all other mutations
+                                    if "denovo_mutations" in rgi_data[hsp][ordered[0]]:
+                                        denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
+                                        denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
+                                        curated_mutations = "n/a"
+                                        curated_types = "n/a"
                                     else:
-                                        curated_frameshifts = "n/a"
-                                        denovo_frameshifts = "n/a"
+                                        denovo_mutations = "n/a"
+                                        denovo_types = "n/a"
+                                        curated_mutations = "n/a"
+                                        curated_types = "n/a"
 
                                 match_dict[hsp] = [hsp, "", "", "", "",
                                                    rgi_data[hsp][ordered[0]
@@ -508,8 +500,10 @@ class ConvertJsonToTSV(object):
                                                              if rgi_data[hsp][ordered[0]]["ARO_category"][x]["category_aro_class_name"] == 'Antibiotic'),
                                                    rgi_data[hsp][ordered[0]
                                                                  ]["ast_source"],
- 												   curated_frameshifts,
-											       denovo_frameshifts
+												   curated_mutations,
+                                                   curated_types,
+												   denovo_mutations,
+                                                   denovo_types
                                                    ]
 
                             for key, value in match_dict.items():
@@ -540,8 +534,10 @@ class ConvertJsonToTSV(object):
         h["Percentage Length of Reference Sequence"] = "Percentage Length of Reference Sequence"
         h["ID"] = "HSP identifier (internal to RGI)"
         h["Model_ID"] = "CARD detection model id"
-        h["Curated_Frameshifts"] = "CARD-curated frameshifts observed in the ARO term of top hit in CARD (if applicable)"
-        h["Denovo_Frameshifts"] = "Newly discovered frameshifts (not curated in CARD) observed in the ARO term of top hit in CARD (if applicable"
+        h["Curated_Mutations"] = "CARD-curated mutations (not SNVs) observed in the ARO term of top hit in CARD (if applicable)"
+        h["Curated_Mutation_Types"] = "TBD"
+        h["Denovo_Mutations"] = "Newly discovered mutations (not SNVs; not curated in CARD) observed in the ARO term of top hit in CARD (if applicable"
+        h["Denovo_Mutation_Types"] = "TBD"
 
         print("\n")
         print("COLUMN", "\t\t\t", "HELP_MESSAGE")

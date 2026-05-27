@@ -113,8 +113,13 @@ class MutationsModule(BaseModel):
                         pos) - hsp_sbjct_start + self.find_num_dash(hsp_sbjct, (int(pos) - hsp_sbjct_start))
                     sbj = int(
                         pos) - hsp_sbjct_start + self.find_num_dash(hsp_sbjct, (int(pos) - hsp_sbjct_start))
+                    
+                    # bounds check before query indexing (making sure that for hsp_quer[qry], qry is neither negative nor greater than the actual length of the sequence)
+                    if not (0 <= qry < len(hsp_query)):
+                        srv_output["has_snp"] = False
+                        yield srv_output
 
-                    if hsp_query[qry] == chan:
+                    elif hsp_query[qry] == chan:
                         # logger.debug("Mutation detected")
                         srv_output["eachs"] = eachs
                         srv_output["has_snp"] = True
@@ -189,26 +194,26 @@ class MutationsModule(BaseModel):
                         
         split_ref = re.findall('.'*3, card_dna_ref)
         
-        if len(fs_dict_list) != 0:
-            """for nucleotide deletions """            
-            ### isolate the position of the gap(s) and the affected codon(s)
-            if "-" in hsp_query:
-                ## split the query sequence into a list of codons
-                split_qry = re.findall('.'*3, hsp_query)
-                stripped_qry = hsp_query.replace("-", "")
+        """for nucleotide deletions """            
+        ### isolate the position of the gap(s) and the affected codon(s)
+        if "-" in hsp_query:
+            ## split the query sequence into a list of codons
+            split_qry = re.findall('.'*3, hsp_query)
+            stripped_qry = hsp_query.replace("-", "")
 
-                ## translate the query sequence into a protein (seq stripped of gaps because Seq hates them)
-                translated_stripped_qry = str(Seq(stripped_qry).translate(table=11))
+            ## translate the query sequence into a protein (seq stripped of gaps because Seq hates them)
+            translated_stripped_qry = str(Seq(stripped_qry).translate(table=11))
 
-                ## iterate through query codon list, find gaps, note position, and grab all relevant information
-                for qry_codons in split_qry:
-                    if "-" in qry_codons:
-                        qry_codon_pos += 1  # in a biological context, codons do not start "indexing" at 0; they start at 1
+            ## iterate through query codon list, find gaps, note position, and grab all relevant information
+            for qry_codons in split_qry:
+                if "-" in qry_codons:
+                    qry_codon_pos += 1  # in a biological context, codons do not start "indexing" at 0; they start at 1
 
-                        if qry_codon_pos <= len(translated_stripped_qry):
-                            aa_pos, affected_codon, corr_aa, translated_codon = self.single_fs(qry_codon_pos, translated_stripped_qry, split_ref)
-                            fs_ter = self.termination(translated_stripped_qry, aa_pos)
+                    if qry_codon_pos <= len(translated_stripped_qry):
+                        aa_pos, affected_codon, corr_aa, translated_codon = self.single_fs(qry_codon_pos, translated_stripped_qry, split_ref)
+                        fs_ter = self.termination(translated_stripped_qry, aa_pos)
 
+                        if fs_dict_list:  # if there are curated frameshifts in the alignment title (PVM, POM)
                             for eachfs in fs_dict_list:
                                 if eachfs["original_aa"] == translated_codon and eachfs["aa_position"] == aa_pos:
                                     # frameshift found is added to 3 lists in 3 different ways
@@ -216,7 +221,7 @@ class MutationsModule(BaseModel):
                                     fs_curated_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
                                     fs_curated_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
                             
-                            if len(fs_curated_list_reg) != 0:
+                            if fs_curated_list_reg:
                                 for _ in fs_curated_list_reg:
                                     if f"{translated_codon}{aa_pos}{corr_aa}" not in fs_curated_list_reg and f"{translated_codon}{aa_pos}{corr_aa}" not in fs_denovo_list_reg:
                                         fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
@@ -227,38 +232,45 @@ class MutationsModule(BaseModel):
                                     fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
                                     fs_denovo_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
                                     fs_denovo_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
-
-                    ## for any other nucleotide in the sequence DO NOT COMMENT OUT
+                        else:  # homologs or models that don't have curated frameshifts
+                            if f"{translated_codon}{aa_pos}{corr_aa}" not in fs_denovo_list_reg:
+                                fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
+                                fs_denovo_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
+                                fs_denovo_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
                     else:
-                        qry_codon_pos += 1
-                
-            """for nucleotide insertions"""
-            ### isolate the position of the gap(s) and the affected codon(s)
-            if "-" in hsp_sbjct:
-                ## split the subject sequence into a list of codons
-                split_sbjct = re.findall('.'*3, hsp_sbjct)
-                stripped_sbjct = hsp_sbjct.replace("-", "")
-                
-                ## translate the subject sequence into a protein (seq stripped of gaps because Seq hates them)
-                translated_stripped_sbjct = str(Seq(stripped_sbjct).translate(table=11, gap="-"))
+                        pass
 
-                ## iterate through subject codon list, find gaps, note position, and grab all relevant information
-                for sbjct_codons in split_sbjct:
-                    if "-" in sbjct_codons:
-                        sbjct_codon_pos += 1
-                        
-                        if sbjct_codon_pos <= len(translated_stripped_sbjct):
-                            aa_pos, affected_codon, corr_aa, translated_codon = self.single_fs(sbjct_codon_pos, translated_stripped_sbjct, split_ref)
-                            fs_ter = self.termination(translated_stripped_sbjct, aa_pos)
+                ## for any other nucleotide in the sequence DO NOT COMMENT OUT
+                else:
+                    qry_codon_pos += 1
+            
+        """for nucleotide insertions"""
+        ### isolate the position of the gap(s) and the affected codon(s)
+        if "-" in hsp_sbjct:
+            ## split the subject sequence into a list of codons
+            split_sbjct = re.findall('.'*3, hsp_sbjct)
+            stripped_sbjct = hsp_sbjct.replace("-", "")
+            
+            ## translate the subject sequence into a protein (seq stripped of gaps because Seq hates them)
+            translated_stripped_sbjct = str(Seq(stripped_sbjct).translate(table=11, gap="-"))
 
+            ## iterate through subject codon list, find gaps, note position, and grab all relevant information
+            for sbjct_codons in split_sbjct:
+                if "-" in sbjct_codons:
+                    sbjct_codon_pos += 1
+                    
+                    if sbjct_codon_pos <= len(translated_stripped_sbjct):
+                        aa_pos, affected_codon, corr_aa, translated_codon = self.single_fs(sbjct_codon_pos, translated_stripped_sbjct, split_ref)
+                        fs_ter = self.termination(translated_stripped_sbjct, aa_pos)
+
+                        if fs_dict_list:
                             for eachfs in fs_dict_list:
                                 if eachfs["original_aa"] == translated_codon and eachfs["aa_position"] == aa_pos:
-                                    # frameshift found is added to 3 lists in 3 different ways
                                     fs_curated_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
                                     fs_curated_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
                                     fs_curated_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
                                 
-                            if len(fs_curated_list_reg) != 0:
+                            if fs_curated_list_reg:
                                 for _ in fs_curated_list_reg:
                                     if f"{translated_codon}{aa_pos}{corr_aa}" not in fs_curated_list_reg:
                                         fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
@@ -269,109 +281,40 @@ class MutationsModule(BaseModel):
                                     fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
                                     fs_denovo_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
                                     fs_denovo_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
-                    else:
-                        sbjct_codon_pos += 1   
-
-            """
-            frameshift output (PVM & POM)
-            """
-            if len(fs_curated_result_HGVS) > 0 or len(fs_denovo_result_HGVS) > 0:
-                fs_result_prelim["query_def"] = str(query_def)
-                fs_result_prelim["has_fs"] = True
-
-                # you can change the output syntax here
-                if len(fs_curated_result_HGVS) > 0:
-                    fs_result_prelim["curated_fs"] = fs_curated_result_HGVS
-                if len(fs_denovo_result_HGVS) > 0:
-                    fs_result_prelim["denovo_fs"] = fs_denovo_result_HGVS
-
-            return fs_result_prelim
-        
-        ## homologs
-        else: 
-            """for nucleotide deletions """            
-            ### isolate the position of the gap(s) and the affected codon(s)
-            if "-" in hsp_query:
-                ## split the query sequence into a list of codons
-                split_qry = re.findall('.'*3, hsp_query)
-                stripped_qry = hsp_query.replace("-", "")
-
-                ## translate the query sequence into a protein (seq stripped of gaps because Seq hates them)
-                translated_stripped_qry = str(Seq(stripped_qry).translate(table=11))
-
-                ## iterate through query codon list, find gaps, note position, and grab all relevant information
-                for qry_codons in split_qry:
-                    if "-" in qry_codons:
-                        qry_codon_pos += 1
-
-                        if qry_codon_pos <= len(translated_stripped_qry):
-                            aa_pos, affected_codon, corr_aa, translated_codon = self.single_fs(qry_codon_pos, translated_stripped_qry, split_ref)
-                            fs_ter = self.termination(translated_stripped_qry, aa_pos)
-
+                        else:
                             if f"{translated_codon}{aa_pos}{corr_aa}" not in fs_denovo_list_reg:
-                                # frameshift found is added to 3 lists in 3 different ways
                                 fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
                                 fs_denovo_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
                                 fs_denovo_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
-                        else:
-                            pass
-
-                    ## for any other nucleotide in the sequence DO NOT COMMENT OUT
                     else:
-                        qry_codon_pos += 1
+                        pass
+                else:
+                    sbjct_codon_pos += 1   
 
-            """for nucleotide insertions"""
-            ### isolate the position of the gap(s) and the affected codon(s)
-            if "-" in hsp_sbjct:
-                ## split the subject sequence into a list of codons
-                split_sbjct = re.findall('.'*3, hsp_sbjct)
-                stripped_sbjct = hsp_sbjct.replace("-", "")
-                
-                ## translate the subject sequence into a protein (seq stripped of gaps because Seq hates them)
-                translated_stripped_sbjct = str(Seq(stripped_sbjct).translate(table=11, gap="-"))
+        """
+        frameshift output (PVM, POM, PHM)
+        """
+        if fs_curated_result_HGVS or fs_denovo_result_HGVS:
+            fs_result_prelim["query_def"] = str(query_def)
+            fs_result_prelim["mutation_type"] = "frameshift"
 
-                ## iterate through subject codon list, find gaps, note position, and grab all relevant information
-                for sbjct_codons in split_sbjct:
-                    if "-" in sbjct_codons:
-                        sbjct_codon_pos += 1
-                        
-                        if sbjct_codon_pos <= len(translated_stripped_sbjct):
-                            aa_pos, affected_codon, corr_aa, translated_codon = self.single_fs(sbjct_codon_pos, translated_stripped_sbjct, split_ref)
-                            fs_ter = self.termination(translated_stripped_sbjct, aa_pos)
+            # you can change the output syntax here
+            if fs_curated_result_HGVS:
+                fs_result_prelim["novelty"] = "curated"
+                fs_result_prelim["result"] = fs_curated_result_HGVS
+            if fs_denovo_result_HGVS:
+                fs_result_prelim["novelty"] = "de_novo"
+                fs_result_prelim["result"] = fs_denovo_result_HGVS
+        elif not fs_curated_result_HGVS and not fs_denovo_result_HGVS:
+            return None
 
-                            if f"{translated_codon}{aa_pos}{corr_aa}" not in fs_denovo_list_reg:
-                                # frameshift found is added to 3 lists in 3 different ways
-                                fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
-                                fs_denovo_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
-                                fs_denovo_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
-                        else:
-                            pass
-                    else:
-                        sbjct_codon_pos += 1   
-
-            """
-            frameshift output (PHM)
-            """
-            if len(fs_denovo_result_HGVS) > 0:
-                # you can change the output syntax here
-                fs_result_prelim["query_def"] = str(query_def)
-                fs_result_prelim["denovo_fs"] = fs_denovo_result_HGVS
-                fs_result_prelim["has_fs"] = True
-            else:
-                fs_result_prelim["query_def"] = str(query_def)
-                fs_result_prelim["has_fs"] = False
-
-            return fs_result_prelim
+        return fs_result_prelim            
 
     def indel(self, hsp_query, hsp_sbjct, card_dna_ref, query_def):
         """
         Searches for insertions and deletions in sequences.
-        Indels must be 3 nucleotides or greater to be detected. Anything else is detected by def_frameshift(). 
-        
-        Note: indels < 3 nucleotides, and handeled by def_frameshift(), do not necessarily result in a frameshift.
-
-        https://hgvs-nomenclature.org/stable/recommendations/protein/insertion/
-        Insertion: a sequence change between the translation initiation (start) and termination (stop) codon where, compared to the reference sequence, one or more amino acids are inserted, which is not a frameshift and where the insertion is not a copy of a sequence immediately N-terminal (5').
+        WIP: curated indels
+        WIP: indels that cancel each other out (e.g., 1 ins/1 del)
         """
         
         # for deletions
@@ -413,7 +356,7 @@ class MutationsModule(BaseModel):
                     beginning_flank = split_qry[qry_codon_count-1]
                     deletion[qry_codon_count-1] = beginning_flank
 
-                    while qry_codon_count <= len(split_qry) and "-" in split_qry[qry_codon_count]:  # that <= may have to be a <, but i can't think straight right now
+                    while qry_codon_count < len(split_qry) and "-" in split_qry[qry_codon_count]:
                         current_codon = split_qry[qry_codon_count]  # snapshot of the current codon
                         deletion[qry_codon_count] = current_codon
                         qry_codon_count += 1  # updates our index to the NEXT codon after successfully identifying a gap
@@ -421,7 +364,11 @@ class MutationsModule(BaseModel):
                     if qry_codon_count < len(split_qry):
                         ending_flank = split_qry[qry_codon_count]
                         deletion[qry_codon_count] = ending_flank
-                        indel_denovo_result_HGVS.append(self.indel_translator(deletion, split_ref, translated_stripped_qry, indel_type = "deletion"))
+
+                        del_result = self.indel_translator(deletion, split_ref, translated_stripped_qry, indel_type = "deletion")
+
+                        if del_result is not None:
+                            indel_denovo_result_HGVS.append(del_result)
                     else:
                         ending_flank = None
 
@@ -448,14 +395,18 @@ class MutationsModule(BaseModel):
                     sbjct_beginning_flank = split_sbjct[sbjct_codon_count-1]
                     insertion[sbjct_codon_count-1] = sbjct_beginning_flank
 
-                    while sbjct_codon_count <= len(split_sbjct) and "-" in split_sbjct[sbjct_codon_count]:
+                    while sbjct_codon_count < len(split_sbjct) and "-" in split_sbjct[sbjct_codon_count]:
                         sbjct_current_codon = split_sbjct[sbjct_codon_count]
                         insertion[sbjct_codon_count] = sbjct_current_codon
                         sbjct_codon_count += 1
                     if sbjct_codon_count < len(split_sbjct):
                         sbjct_ending_flank = split_sbjct[sbjct_codon_count]
                         insertion[sbjct_codon_count] = sbjct_ending_flank
-                        indel_denovo_result_HGVS.append(self.indel_translator(insertion, split_ref, translated_stripped_sbjct, indel_type = "insertion"))
+
+                        in_result = self.indel_translator(insertion, split_ref, translated_stripped_sbjct, indel_type = "insertion")
+
+                        if in_result is not None:
+                            indel_denovo_result_HGVS.append(in_result)
                     else:
                         sbjct_ending_flank = None
 
@@ -463,24 +414,24 @@ class MutationsModule(BaseModel):
                 else:
                     sbjct_codon_count += 1
 
-        if len(indel_denovo_result_HGVS) > 0:
+        if indel_denovo_result_HGVS:
             # you can change the output syntax here
             indel_result_prelim["query_def"] = str(query_def)
-            indel_result_prelim["denovo_fs"] = indel_denovo_result_HGVS
-            indel_result_prelim["has_indel"] = True
+            indel_result_prelim["mutation_type"] = "indel"
+            indel_result_prelim["novelty"] = "de_novo"
+            indel_result_prelim["result"] = indel_denovo_result_HGVS
+            
+            return indel_result_prelim
         else:
-            indel_result_prelim["query_def"] = str(query_def)
-            indel_result_prelim["has_indel"] = False
-
-        return indel_result_prelim
+            return None
 
     def single_fs(self, codon_count, translated_stripped_seq, split_ref):
         aa_pos = codon_count
         affected_codon = split_ref[aa_pos - 1]
-        corr_aa = translated_stripped_seq[aa_pos - 1] # index starts at 0
+        corr_aa = translated_stripped_seq[aa_pos - 1]  # index starts at 0
         translated_codon = str(Seq(affected_codon).translate(table=11))
 
-        return aa_pos, affected_codon, corr_aa, translated_codon ## aa_pos is just codon_count... fix that
+        return aa_pos, affected_codon, corr_aa, translated_codon  # aa_pos is just codon_count... fix that
     
     def termination(self, translated_stripped_seq, aa_pos):
         aa_count = 0
@@ -496,6 +447,13 @@ class MutationsModule(BaseModel):
     
     def indel_translator(self, indel, split_ref, translated_stripped_seq, indel_type=None):
         unpacked_indel = list(indel.items())
+
+        # validating the positions in our indel to make sure nothing is out of bounds (i've learned my lesson)
+        max_pos = max([pos for pos, codon in unpacked_indel])  # finding the max position (our upper bound)
+
+        if max_pos - 1 >= len(translated_stripped_seq):
+            return None
+
         inordel_codons = ""
 
         for i, (position, codon) in enumerate(unpacked_indel):  # we don't actually access codon... but you never know when you'll need it? :^)
@@ -523,83 +481,96 @@ class MutationsModule(BaseModel):
             indel = f"{beginning_flank}{beginning_pos}_{end_flank}{end_pos}ins{inordel_codons}"
             return indel
 
-    def consolidate_mutations(self, input_type, hit_id, model_type, srv=None, fs=None, phm=None, hsp_bitscore=None, pass_val=None):
+    def consolidate_mutations(self, input_type, hit_id, model_type, srv=None, other_mutations=[], phm=None, hsp_bitscore=None, pass_val=None):
         """
         Consolidates the results from all mutation functions and passes the output back into RGI's detection modules (PHM, PVM, POM,    RGV).
         """
 
         has_snp = srv.get("has_snp", False) if srv is not None else False  # the PHM does not generate srv, so this avoids an AttributeError
+        passes_eval = float(hsp_bitscore) >= float(pass_val)
+
+        merged_mutations = {
+            "curated_mutations": [],
+            "denovo_mutations": []
+        }
 
         # protein input
-        if input_type == "protein" and srv is not None:
-            if has_snp:  # CASE 1: if the input is a protein there won't be a BLASTN xml generated
+        if input_type == "protein":
+            if srv is None and phm:
+                return []
+            elif srv is not None and has_snp:  # CASE 1: if the input is a protein there won't be a BLASTN xml generated
                 return [srv]
 
-            return []
-
         # nucleotide input
-        else:
-            if not fs:
-                return []
-            
-            for fs_hit in fs:
-                fs_id = fs_hit["query_def"].split()[0]
-                has_curated_fs = "curated_fs" in fs_hit
-                has_denovo_fs = "denovo_fs" in fs_hit  ## PHMs will only have de novo frameshifts
-                                                       ## (nothing is curated for them right now)
-                                                                                
-                passes_eval = float(hsp_bitscore) >= float(pass_val)
+        elif input_type == "contig":
+            if not other_mutations:
+                if srv is not None and has_snp:
+                    return [srv] # CASE 1: only SNP
+                else:
+                    return []  
+            else:
+                for mutations in other_mutations:
+                    merged_mutations["query_def"] = mutations["query_def"]
+                    mutation_id = mutations["query_def"].split()[0]
 
-                # protein variant frameshift/SNP search
-                if model_type == "pvm":
+                    # building out our nested dictionary of mutations lists (in subdictionaries...)
+                    # we want rich merged output
+                    for result in mutations["result"]:
+                        mutation_entry = {
+                            "mutation_type": mutations["mutation_type"],
+                            "result": result
+                        }
+
+                        if mutations["novelty"] == "curated":
+                            merged_mutations["curated_mutations"].append(mutation_entry)
+                        elif mutations["novelty"] == "de_novo":
+                            merged_mutations["denovo_mutations"].append(mutation_entry)
+
+                has_curated_mutation = len(merged_mutations["curated_mutations"]) > 0
+                has_denovo_mutation = len(merged_mutations["denovo_mutations"]) > 0
+                has_other_mutations = has_curated_mutation or has_denovo_mutation
+
+                if srv is not None:
                     srv_id = srv["query_def"].split()[0]
+                    
+                    if mutation_id in srv_id:
+                        # protein variant frameshift/SNP search
+                        if model_type == "PVM":
+                            if has_snp and has_other_mutations:  # CASE 2: SNP + other mutations
+                                return [srv | merged_mutations]
+                                    
+                            elif not has_snp and has_other_mutations:  # CASE 3: other mutations found; SNPs were not found in any HSPs with SNP in the alignment title
+                                if passes_eval and has_curated_mutation:  # Strict alignments
+                                    merged_mutations["query_def"] += hit_id
+                                    return [merged_mutations]
+                                elif not passes_eval and has_curated_mutation:  # Loose alignments
+                                    merged_mutations["query_def"] += hit_id
+                                    return [merged_mutations]
 
-                    if has_snp:  # If SNPs were found
-                        if fs_id in srv_id:
-                            if not (has_curated_fs or has_denovo_fs):  # CASE 1 (only SNP)
-                                return [srv]
-                            else:  # CASE 2 (SNP and frameshift)
-                                return [srv | fs_hit]
-                            
-                    else:  # CASE 3: frameshift found; SNPs were not found in any HSPs with SNP in the alignment title
-                        if not has_snp:
-                            if fs_id in srv_id:
-                                if passes_eval and has_curated_fs:  # Strict alignments
-                                    fs_hit["query_def"] += hit_id
-                                    return [fs_hit]
-                                elif not passes_eval and has_curated_fs:  # Loose alignments
-                                    fs_hit["query_def"] += hit_id
-                                    return [fs_hit]
-                            return []
+                        # protein overexpression frameshift/SNP search
+                        if model_type == "POM":
+                            srv_id = srv["query_def"].split()[0]
                         
-                # protein overexpression frameshift/SNP search
-                if model_type == "pom":
-                    srv_id = srv["query_def"].split()[0]
-                
-                    if has_snp:  # If SNPs were found
-                        if fs_id in srv_id:
-                            if not (has_curated_fs or has_denovo_fs):  # CASE 1 (only SNP)
-                                return [srv]
-                            else:  # CASE 2 (SNP and frameshift)
-                                return [srv | fs_hit]
-                            
-                    else:  # CASE 3: frameshift found; SNPs were not found in any HSPs with SNP in the alignment title
-                        if not has_snp:
-                            if fs_id in srv_id:
-                                if passes_eval and has_curated_fs:  # Strict alignments
-                                    fs_hit["query_def"] += hit_id
-                                    return [fs_hit]
-                                elif not passes_eval and has_curated_fs:  # Loose alignments
-                                    fs_hit["query_def"] += hit_id
-                                    return [fs_hit]
-                            return []
-                                
+                            if has_snp and has_other_mutations:
+                                return [srv | merged_mutations]
+                                    
+                            elif not has_snp and has_other_mutations:  # CASE 3: other mutations found; SNPs were not found in any HSPs with SNP in the alignment title
+                                if passes_eval and has_curated_mutation:  # Strict alignments
+                                    merged_mutations["query_def"] += hit_id
+                                    return [merged_mutations]
+                                elif not passes_eval and has_curated_mutation:  # Loose alignments
+                                    merged_mutations["query_def"] += hit_id
+                                    return [merged_mutations]
+                                    
                 # protein homolog frameshift search               
-                if model_type == "phm":
+                if model_type == "PHM":
                     phm_id = phm["query_def"].split()[0]
                 
-                    if fs_id in phm_id and has_denovo_fs and passes_eval:
-                        # Perfect PHMs will not have frameshifts in them, so there's no need to add unique support for them here
-                        fs_hit["query_def"] += hit_id
-                        return [fs_hit]
-                    return []
+                    if mutation_id in phm_id:
+                        if passes_eval and has_denovo_mutation :
+                            # Perfect PHMs will not have frameshifts (etc.) in them, so there's no need to add unique support for them here
+                            merged_mutations["query_def"] += hit_id
+                            return [merged_mutations]
+                        elif not passes_eval and has_denovo_mutation:
+                            merged_mutations["query_def"] += hit_id
+                            return [merged_mutations]

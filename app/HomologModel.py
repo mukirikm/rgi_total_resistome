@@ -1,7 +1,7 @@
 from app.Mutations import MutationsModule
 from app.settings import *
 from Bio.Blast import NCBIXML
-
+import traceback
 
 class Homolog(MutationsModule):
     """Class for homology searches."""
@@ -49,38 +49,53 @@ class Homolog(MutationsModule):
         with open(os.path.join(self.data, "card.json")) as json_file:
             json_data = json.load(json_file)
 
-        try:
-            with open(self.dna_xml_file, 'r') as blastn_result_handle:
-                blastn_records = NCBIXML.parse(blastn_result_handle)
-                fs_result = []
+        fs_result = []
+        indel_result = []
 
-                for blastn_record in blastn_records:
-                    bnquery_def = blastn_record.query
+        if self.dna_xml_file:
+            try:
+                with open(self.dna_xml_file, 'r') as blastn_result_handle:
+                    blastn_records = NCBIXML.parse(blastn_result_handle)
 
-                    if blastn_record.alignments:
-                        for alignment in blastn_record.alignments:
-                            alignTitle = alignment.title
-                            modelTypeID = self.extract_nth_bar(alignTitle, 0)
-                            spacepos = alignTitle.index(' ')
-                            hitid = alignTitle[0:spacepos]
-                            hitid = hitid.encode('ascii', 'replace')
-                            modelDescrpt = alignTitle[alignTitle.index(' ')+1:]
-                            underscoreinMD = modelDescrpt.index('_')
-                            modelID = modelDescrpt[0:underscoreinMD]
-                            seqinModel = modelDescrpt[underscoreinMD +
-                                                    1: modelDescrpt.index(' ')]
+                    for blastn_record in blastn_records:
+                        bnquery_def = blastn_record.query
 
-                            modelTypeID = self.extract_nth_bar(alignTitle, 0)
-                            
-                            if modelTypeID == 40292: ## homologs don't have curated frameshifts anyway                                                                                                
-                                for hsp in alignment.hsps:
-                                    card_dna_ref = json_data[modelID]["model_sequences"]["sequence"][seqinModel]["dna_sequence"]["sequence"]
-                                    fs_result.append(self.frameshift(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def))
-                
-        except FileNotFoundError as e:
-            fs_result = None
-            logger.info("Skipping PHM frameshift search...")
-            pass
+                        if blastn_record.alignments:
+                            for alignment in blastn_record.alignments:
+                                alignTitle = alignment.title
+                                modelTypeID = self.extract_nth_bar(alignTitle, 0)
+                                spacepos = alignTitle.index(' ')
+                                hitid = alignTitle[0:spacepos]
+                                hitid = hitid.encode('ascii', 'replace')
+                                modelDescrpt = alignTitle[alignTitle.index(' ')+1:]
+                                underscoreinMD = modelDescrpt.index('_')
+                                modelID = modelDescrpt[0:underscoreinMD]
+                                seqinModel = modelDescrpt[underscoreinMD +
+                                                        1: modelDescrpt.index(' ')]
+
+                                modelTypeID = self.extract_nth_bar(alignTitle, 0)
+                                
+                                if modelTypeID == 40292: ## homologs don't have curated frameshifts anyway                                                                                                
+                                    for hsp in alignment.hsps:
+                                        card_dna_ref = json_data[modelID]["model_sequences"]["sequence"][seqinModel]["dna_sequence"]["sequence"]
+                                        
+                                        fs_out = self.frameshift(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def)
+                                        indel_out = self.indel(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def)
+
+                                        if fs_out is not None:
+                                            fs_result.append(fs_out)
+                                        if indel_out is not None:
+                                            indel_result.append(indel_out)
+                                else:
+                                    pass
+                        else:
+                            fs_result = []
+                            indel_result = []
+            except FileNotFoundError as e:
+                traceback.print_exc()
+                logger.info("Skipping PHM extended mutation search...")
+        else:
+            logger.info("Skipping PHM extended mutation search...")
 
         with open(self.xml_file, 'r') as result_handle:
             blast_records = NCBIXML.parse(result_handle)
@@ -90,12 +105,14 @@ class Homolog(MutationsModule):
                 strict = {}
                 loose = {}
 
-                ## filter fs_result to only entries matching this blast_record's query
+				## filter MM results to only entries matching this blast_record's query
                 bpquery_def = blast_record.query
-                fs_result_filtered = [
-					f for f in fs_result 
-					if f["query_def"].split()[0] in bpquery_def] if fs_result else None
+                mutation_result = (fs_result or []) + (indel_result or [])
 
+                mutation_result_filtered = [
+					m for m in mutation_result
+					if m["query_def"].split()[0] in bpquery_def] if mutation_result else None
+                
                 for alignment in blast_record.alignments:
                     alignTitle = alignment.title
                     orfInfo = blast_record.query.encode('ascii', 'replace')
@@ -138,6 +155,7 @@ class Homolog(MutationsModule):
                             realQueryLength = len(querySeq)
                             card_sequence = ""
                             orf_protein_sequence = ""
+
                             try:
                                 card_sequence = str(
                                     json_data[modelID]["model_sequences"]["sequence"][seqinModel]["protein_sequence"]["sequence"])
@@ -159,18 +177,18 @@ class Homolog(MutationsModule):
                                 
                             phm_result = {"query_def": bpquery_def}
 
-                            mm_output = list(self.consolidate_mutations(
+                            mm_output = self.consolidate_mutations(
                                 self.input_type, 
                                 hitid.decode(), 
-                                model_type="phm",
-                                fs=fs_result_filtered, 
+                                model_type="PHM",
+                                other_mutations=mutation_result_filtered, 
                                 phm=phm_result, 
                                 hsp_bitscore=hsp.bits, 
                                 pass_val=pass_bitscore
-                                ))
-
-                            mm_isolated = [m for m in mm_output
-                                            if m.get("has_fs", False)]  # isolating mm_output that actually has frameshifts
+                                )
+                                                        
+                            mm_record = mm_output[0] if mm_output else None
+                            denovo_mutations = mm_record.get("denovo_mutations", []) if mm_record else []
 
                             try:
                                 if card_sequence.upper() == orf_protein_sequence.upper():
@@ -339,11 +357,12 @@ class Homolog(MutationsModule):
                                     elif self.input_type == 'read':
                                         pass
 
-                                    if mm_isolated:
-                                        for mm_isolates in mm_isolated:
-                                            insidedict["denovo_fs"] = mm_isolates["denovo_fs"]
+                                    if denovo_mutations is not None:
+                                        insidedict["denovo_mutations"] = '; '.join(m["result"] for m in denovo_mutations)
+                                        insidedict["denovo_mutation_types"] = '; '.join(m["mutation_type"] for m in denovo_mutations)
                                     else:
-                                        insidedict["denovo_fs"] = "n/a"
+                                        insidedict["denovo_mutations"] = "n/a"
+                                        insidedict["denovo_mutation_types"] = "n/a"
 
                                     insidedict["perc_identity"] = float(format(
                                         float(insidedict["max_identities"]*100) / len(insidedict["query"]), '.2f'))
@@ -432,11 +451,12 @@ class Homolog(MutationsModule):
                                     elif self.input_type == 'read':
                                         pass
 
-                                    if mm_isolated:
-                                        for mm_isolates in mm_isolated:
-                                            linsidedict["denovo_fs"] = mm_isolates["denovo_fs"]
+                                    if denovo_mutations is not None:
+                                        linsidedict["denovo_mutations"] = '; '.join(m["result"] for m in denovo_mutations)
+                                        linsidedict["denovo_mutation_types"] = '; '.join(m["mutation_type"] for m in denovo_mutations)
                                     else:
-                                        linsidedict["denovo_fs"] = "n/a"
+                                        linsidedict["denovo_mutations"] = "n/a"
+                                        linsidedict["denovo_mutation_types"] = "n/a"
 
                                     linsidedict["perc_identity"] = float(format(
                                         float(linsidedict["max_identities"]*100) / len(linsidedict["query"]), '.2f'))
@@ -452,5 +472,5 @@ class Homolog(MutationsModule):
 
                 blastResults = self.results(
                     blastResults, blast_record.query, perfect, strict, loose, self.include_nudge)
-
+            
             return blastResults
