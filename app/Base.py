@@ -11,6 +11,7 @@ from abc import ABCMeta, abstractmethod
 from app.settings import logger
 from Bio.Seq import Seq
 from pyfaidx import Fasta
+import re
 
 
 class RGIBase(object):
@@ -607,3 +608,36 @@ class BaseModel(object):
                             ast_source.append(s)
 
         return "; ".join(ast_source)
+    
+    def parse_frameshifts(self, each_fs):
+        digits = ''.join(filter(str.isdigit, each_fs))
+            
+        if digits:
+            original = each_fs.split(digits)
+
+            if len(original) < 1 or not original[0]:
+                return None
+
+            position = int(digits)
+
+            return original[0], position
+        else:
+            return None
+    
+    def parse_indels(self, indel):
+        if "_" in indel:  # e.g., D244_V245del
+            match = re.match(r"([A-Z])(\d+)_([A-Z])(\d+)(?:ins|del)([A-Z]+)", indel)  # capture everything except the words ins/del
+
+            if match:
+                aa1, pos1, aa2, pos2, event = match.groups()
+                return aa1, pos1, aa2, pos2, event
+            return None
+        else:  # e.g., I170del
+            match = re.match(r"([A-Z])(\d+)(ins|del)", indel)  # capture everything PLUS the words ins/del
+
+            if match:
+                aa, pos, event = match.groups()
+                return aa, pos, event
+            return None
+
+

@@ -77,29 +77,56 @@ class Variant(MutationsModule):
 										true_pass_evalue = float(
 											pass_value[0:pass_value.find(' ')])
 
-									fsl = []
 									fs_dict_list = []
+									pep_insert_dict_list = []
+									pep_del_dict_list = []
 
-									evalue_fs = self.extract_nth_bar(align_title, 2)
-									fsl = evalue_fs.split(',')
-
-									if "Frameshift: None" not in align_title:
-										## grabbing curated frameshifts from blast XML (change to CARD JSON as input later?)
-										for each_fs in fsl:
-											digits = ''.join(filter(str.isdigit, each_fs))
-											if not digits:
-												continue
-
-											original = each_fs.split(digits)
-											if len(original) < 1 or not original[0]:
-												continue
-
-											position = int(digits)
+									if json_data[model_id]["model_param"].get("40494"):  # frameshifts
+										for each_fs in list(json_data[model_id]["model_param"]["40494"]["param_value"].values()):
+											original_aa, pos = self.parse_frameshifts(each_fs)
 											fs_dict_list.append({
-												"original_aa": original[0],
-												"aa_position": position
+												"original_aa": original_aa,
+												"aa_position": pos
 											})
-											
+
+									if json_data[model_id]["model_param"].get("41344"):  # insertions into peptide seqs
+										for eachpepin in list(json_data[model_id]["model_param"]["41344"]["param_value"].values()):
+											if "_" in eachpepin:
+												aa1, pos1, aa2, pos2, inserted = self.parse_indels(eachpepin)
+												pep_insert_dict_list.append({
+													"aa1": aa1,
+													"pos1": int(pos1),
+													"aa2": aa2,
+													"pos2": int(pos2),
+													"inserted": inserted
+													})
+											else:
+												aa, pos, event = self.parse_indels(eachpepin)
+												pep_insert_dict_list.append({
+													"aa": aa,
+													"pos": int(pos),
+													"event": event
+													})
+
+									if json_data[model_id]["model_param"].get("41342"): # deletions into peptide seqs
+										for eachpepdel in list(json_data[model_id]["model_param"]["41342"]["param_value"].values()):
+											if "_" in eachpepdel:
+												aa1, pos1, aa2, pos2, deleted = self.parse_indels(eachpepdel)
+												pep_del_dict_list.append({
+													"aa1": aa1,
+													"pos1": int(pos1),
+													"aa2": aa2,
+													"pos2": int(pos2),
+													"deleted": deleted
+													})
+											else:
+												aa, pos, event= self.parse_indels(eachpepdel)
+												pep_del_dict_list.append({
+													"aa": aa,
+													"pos": int(pos),
+													"event": event
+													})									
+												
 									for hsp in alignment.hsps:
 										query_seq =  hsp.query.replace('-', '')
 										real_query_length = len(query_seq)
@@ -114,6 +141,7 @@ class Variant(MutationsModule):
 										# fetch mutations from MM
 										if fs_out is not None:
 											fs_result.append(fs_out)
+											print(fs_result)
 										if indel_out is not None:
 											indel_result.append(indel_out)
 								else:
