@@ -105,8 +105,6 @@ class ConvertJsonToTSV(object):
                     except:
                         pass
                     
-                    # print(rgi_data)
-
                     for hsp in rgi_data:
                         order_perfect = []
                         order_loose = []
@@ -118,8 +116,10 @@ class ConvertJsonToTSV(object):
                         temp3 = []
                         best_snps = ""
                         other_snps = ""
-                        curated_frameshifts = ""
-                        denovo_frameshifts = ""
+                        curated_mutations = ""
+                        curated_types = ""
+                        denovo_mutations = ""
+                        denovo_types = ""
 
                         nudged = ""
                         note = ""
@@ -191,7 +191,7 @@ class ConvertJsonToTSV(object):
                             orf_prot_sequence_possible = rgi_data[hsp][ordered[0]
                                                                        ]["orf_prot_sequence_possible"]
 
-                        if dna == 1:
+                        if dna == 1:  ## contig input
                             if nudged == True and rgi_data[hsp][ordered[0]]["type_match"] == "Perfect":
                                 orf_start = orf_start_possible
                                 orf_end = orf_end_possible
@@ -229,18 +229,10 @@ class ConvertJsonToTSV(object):
                                         other_snps = "n/a"
 
                                     ## all other mutations
-                                    if "curated_mutations" in rgi_data[hsp][ordered[0]]:
-                                        curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
-                                        curated_types = rgi_data[hsp][ordered[0]].get("curated_mutation_types", "n/a")
-                                    else:
-                                        curated_mutations = "n/a"
-                                        curated_types = "n/a"
-                                    if "denovo_mutations" in rgi_data[hsp][ordered[0]]:
-                                        denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
-                                        denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
-                                    else:
-                                        denovo_mutations = "n/a"
-                                        denovo_types = "n/a"
+                                    curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
+                                    curated_types = rgi_data[hsp][ordered[0]].get("curated_mutation_types", "n/a")
+                                    denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
+                                    denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
                        
                                 elif rgi_data[hsp][hit]["model_type_id"] in [40293, 40295]: # protein variant & rRNA gene variant models
                                     if "snp" in rgi_data[hsp][ordered[0]]:
@@ -274,37 +266,23 @@ class ConvertJsonToTSV(object):
                                         other_snps = "n/a"
                                     
                                     ## all other mutations
-                                    if "curated_mutations" in rgi_data[hsp][ordered[0]]:
-                                        curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
-                                        curated_types = rgi_data[hsp][ordered[0]].get("curated_mutation_types", "n/a")
-                                    else:
-                                        curated_mutations = "n/a"
-                                        curated_types = "n/a"
-                                    if "denovo_mutations" in rgi_data[hsp][ordered[0]]:
-                                        denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
-                                        denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
-                                    else:
-                                        denovo_mutations = "n/a"
-                                        denovo_types = "n/a"
+                                    curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
+                                    curated_types = rgi_data[hsp][ordered[0]].get("curated_mutation_types", "n/a")
+                                    denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
+                                    denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
 
                                 elif rgi_data[hsp][hit]["model_type_id"] == 40292: # protein homolog model
                                     best_snps = "n/a"
                                     other_snps = "n/a"
 
-                                if not other_snps:
-                                    other_snps = "n/a"
-
-                                ## all other mutations
-                                if "denovo_mutations" in rgi_data[hsp][ordered[0]]:
+                                    ## all other mutations
                                     denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
                                     denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
                                     curated_mutations = "n/a"
                                     curated_types = "n/a"
-                                else:
-                                    denovo_mutations = "n/a"
-                                    denovo_types = "n/a"
-                                    curated_mutations = "n/a"
-                                    curated_types = "n/a"
+
+                                if not other_snps:
+                                    other_snps = "n/a"
 
                                 if rgi_data[hsp][hit]["model_type_id"] in [40295]: # rRNA gene variant model
                                     percentage_length_reference_sequence = format((abs(orf_end - orf_start) /
@@ -369,8 +347,14 @@ class ConvertJsonToTSV(object):
                             for key, value in match_dict.items():
                                 writer.writerow(value)
 
-                        else: ## protein input
+                        else:  ## protein input
                             if len(rgi_data[hsp]) != 0:
+                                # because other mutations are only found through BLASTN (only for contig inputs)    
+                                denovo_mutations = "n/a"
+                                denovo_types = "n/a"
+                                curated_mutations = "n/a"
+                                curated_types = "n/a"
+
                                 if rgi_data[hsp][hit]["model_type_id"] == 41091: # protein overexpression model
                                     if "snp" in rgi_data[hsp][ordered[0]]:
                                         for x in rgi_data[hsp].values():
@@ -392,19 +376,11 @@ class ConvertJsonToTSV(object):
                                         best_snps = "n/a"
                                         other_snps = "n/a"
 
-                                    ## all other mutations
-                                    if "curated_mutations" in rgi_data[hsp][ordered[0]]:
-                                        curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
-                                        curated_types = rgi_data[hsp][ordered[0]].get("curated_mutation_types", "n/a")
-                                    else:
-                                        curated_mutations = "n/a"
-                                        curated_types = "n/a"
-                                    if "denovo_mutations" in rgi_data[hsp][ordered[0]]:
-                                        denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
-                                        denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
-                                    else:
-                                        denovo_mutations = "n/a"
-                                        denovo_types = "n/a"
+                                    # ## all other mutations
+                                    # curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
+                                    # curated_types = rgi_data[hsp][ordered[0]].get("curated_mutation_types", "n/a")
+                                    # denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
+                                    # denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
                                                     
                                 elif rgi_data[hsp][hit]["model_type_id"] == 40293: # protein variant model
                                     if "snp" in rgi_data[hsp][ordered[0]]:
@@ -427,35 +403,21 @@ class ConvertJsonToTSV(object):
                                         best_snps = "n/a"
                                         other_snps = "n/a"
                                                                                             
-                                    ## all other mutations
-                                    if "curated_mutations" in rgi_data[hsp][ordered[0]]:
-                                        curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
-                                        curated_types = rgi_data[hsp][ordered[0]].get("curated_mutation_types", "n/a")
-                                    else:
-                                        curated_mutations = "n/a"
-                                        curated_types = "n/a"
-                                    if "denovo_mutations" in rgi_data[hsp][ordered[0]]:
-                                        denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
-                                        denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
-                                    else:
-                                        denovo_mutations = "n/a"
-                                        denovo_types = "n/a"
+                                    # ## all other mutations
+                                    # curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
+                                    # curated_types = rgi_data[hsp][ordered[0]].get("curated_mutation_types", "n/a")
+                                    # denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
+                                    # denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
                                                        
                                 elif rgi_data[hsp][hit]["model_type_id"] == 40292: # protein homolog model
                                     best_snps = "n/a"
                                     other_snps = "n/a"
 
-                                    ## all other mutations
-                                    if "denovo_mutations" in rgi_data[hsp][ordered[0]]:
-                                        denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
-                                        denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
-                                        curated_mutations = "n/a"
-                                        curated_types = "n/a"
-                                    else:
-                                        denovo_mutations = "n/a"
-                                        denovo_types = "n/a"
-                                        curated_mutations = "n/a"
-                                        curated_types = "n/a"
+                                    # ## all other mutations
+                                    # denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
+                                    # denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
+                                    # curated_mutations = "n/a"
+                                    # curated_types = "n/a"
 
                                 match_dict[hsp] = [hsp, "", "", "", "",
                                                    rgi_data[hsp][ordered[0]
