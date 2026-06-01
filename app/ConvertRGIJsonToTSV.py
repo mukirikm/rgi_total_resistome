@@ -93,8 +93,8 @@ class ConvertJsonToTSV(object):
                                  "AST_Source",
                                  "Curated_Mutations",
                                  "Curated_Mutation_Types",
-							     "Denovo_Mutations",
-                                 "Denovo_Mutation_Types"
+							     "De_novo_Mutations",
+                                 "De_novo_Mutation_Types"
                                 ])
 
                 if os.path.isfile(self.filepath):
@@ -118,8 +118,8 @@ class ConvertJsonToTSV(object):
                         other_snps = ""
                         curated_mutations = ""
                         curated_types = ""
-                        denovo_mutations = ""
-                        denovo_types = ""
+                        de_novo_mutations = ""
+                        de_novo_types = ""
 
                         nudged = ""
                         note = ""
@@ -231,8 +231,8 @@ class ConvertJsonToTSV(object):
                                     ## all other mutations
                                     curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
                                     curated_types = rgi_data[hsp][ordered[0]].get("curated_mutation_types", "n/a")
-                                    denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
-                                    denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
+                                    de_novo_mutations = rgi_data[hsp][ordered[0]].get("de_novo_mutations", "n/a")
+                                    de_novo_types = rgi_data[hsp][ordered[0]].get("de_novo_mutation_types", "n/a")
                        
                                 elif rgi_data[hsp][hit]["model_type_id"] in [40293, 40295]: # protein variant & rRNA gene variant models
                                     if "snp" in rgi_data[hsp][ordered[0]]:
@@ -268,16 +268,16 @@ class ConvertJsonToTSV(object):
                                     ## all other mutations
                                     curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
                                     curated_types = rgi_data[hsp][ordered[0]].get("curated_mutation_types", "n/a")
-                                    denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
-                                    denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
+                                    de_novo_mutations = rgi_data[hsp][ordered[0]].get("de_novo_mutations", "n/a")
+                                    de_novo_types = rgi_data[hsp][ordered[0]].get("de_novo_mutation_types", "n/a")
 
                                 elif rgi_data[hsp][hit]["model_type_id"] == 40292: # protein homolog model
                                     best_snps = "n/a"
                                     other_snps = "n/a"
 
                                     ## all other mutations
-                                    denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
-                                    denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
+                                    de_novo_mutations = rgi_data[hsp][ordered[0]].get("de_novo_mutations", "n/a")
+                                    de_novo_types = rgi_data[hsp][ordered[0]].get("de_novo_mutation_types", "n/a")
                                     curated_mutations = "n/a"
                                     curated_types = "n/a"
 
@@ -341,8 +341,8 @@ class ConvertJsonToTSV(object):
                                                                  ]["ast_source"],
 												   curated_mutations,
                                                    curated_types,
-												   denovo_mutations,
-                                                   denovo_types
+												   de_novo_mutations,
+                                                   de_novo_types
                                                    ]
                             for key, value in match_dict.items():
                                 writer.writerow(value)
@@ -350,8 +350,8 @@ class ConvertJsonToTSV(object):
                         else:  ## protein input
                             if len(rgi_data[hsp]) != 0:
                                 # because other mutations are only found through BLASTN (only for contig inputs)    
-                                denovo_mutations = "n/a"
-                                denovo_types = "n/a"
+                                de_novo_mutations = "n/a"
+                                de_novo_types = "n/a"
                                 curated_mutations = "n/a"
                                 curated_types = "n/a"
 
@@ -379,8 +379,8 @@ class ConvertJsonToTSV(object):
                                     # ## all other mutations
                                     # curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
                                     # curated_types = rgi_data[hsp][ordered[0]].get("curated_mutation_types", "n/a")
-                                    # denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
-                                    # denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
+                                    # de_novo_mutations = rgi_data[hsp][ordered[0]].get("de_novo_mutations", "n/a")
+                                    # de_novo_types = rgi_data[hsp][ordered[0]].get("de_novo_mutation_types", "n/a")
                                                     
                                 elif rgi_data[hsp][hit]["model_type_id"] == 40293: # protein variant model
                                     if "snp" in rgi_data[hsp][ordered[0]]:
@@ -406,16 +406,16 @@ class ConvertJsonToTSV(object):
                                     # ## all other mutations
                                     # curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
                                     # curated_types = rgi_data[hsp][ordered[0]].get("curated_mutation_types", "n/a")
-                                    # denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
-                                    # denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
+                                    # de_novo_mutations = rgi_data[hsp][ordered[0]].get("de_novo_mutations", "n/a")
+                                    # de_novo_types = rgi_data[hsp][ordered[0]].get("de_novo_mutation_types", "n/a")
                                                        
                                 elif rgi_data[hsp][hit]["model_type_id"] == 40292: # protein homolog model
                                     best_snps = "n/a"
                                     other_snps = "n/a"
 
                                     # ## all other mutations
-                                    # denovo_mutations = rgi_data[hsp][ordered[0]].get("denovo_mutations", "n/a")
-                                    # denovo_types = rgi_data[hsp][ordered[0]].get("denovo_mutation_types", "n/a")
+                                    # de_novo_mutations = rgi_data[hsp][ordered[0]].get("de_novo_mutations", "n/a")
+                                    # de_novo_types = rgi_data[hsp][ordered[0]].get("de_novo_mutation_types", "n/a")
                                     # curated_mutations = "n/a"
                                     # curated_types = "n/a"
 
@@ -464,8 +464,8 @@ class ConvertJsonToTSV(object):
                                                                  ]["ast_source"],
 												   curated_mutations,
                                                    curated_types,
-												   denovo_mutations,
-                                                   denovo_types
+												   de_novo_mutations,
+                                                   de_novo_types
                                                    ]
 
                             for key, value in match_dict.items():
@@ -498,8 +498,8 @@ class ConvertJsonToTSV(object):
         h["Model_ID"] = "CARD detection model id"
         h["Curated_Mutations"] = "CARD-curated mutations (not SNVs) observed in the ARO term of top hit in CARD (if applicable)"
         h["Curated_Mutation_Types"] = "TBD"
-        h["Denovo_Mutations"] = "Newly discovered mutations (not SNVs; not curated in CARD) observed in the ARO term of top hit in CARD (if applicable"
-        h["Denovo_Mutation_Types"] = "TBD"
+        h["De_novo_Mutations"] = "Newly discovered mutations (not SNVs; not curated in CARD) observed in the ARO term of top hit in CARD (if applicable"
+        h["De_novo_Mutation_Types"] = "TBD"
 
         print("\n")
         print("COLUMN", "\t\t\t", "HELP_MESSAGE")

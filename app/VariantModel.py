@@ -92,41 +92,53 @@ class Variant(MutationsModule):
 									if json_data[model_id]["model_param"].get("41344"):  # insertions into peptide seqs
 										for eachpepin in list(json_data[model_id]["model_param"]["41344"]["param_value"].values()):
 											if "_" in eachpepin:
-												aa1, pos1, aa2, pos2, inserted = self.parse_indels(eachpepin)
+												result = self.parse_indels(eachpepin)
 												pep_insert_dict_list.append({
-													"aa1": aa1,
-													"pos1": int(pos1),
-													"aa2": aa2,
-													"pos2": int(pos2),
-													"inserted": inserted
+													"aa1": result[0],
+													"pos1": int(result[1]),
+													"aa2": result[2],
+													"pos2": int(result[3]),
+													"event": result[4],
+													"deleted": result[5],
+													"full_indel": eachpepin
 													})
 											else:
-												aa, pos, event = self.parse_indels(eachpepin)
+												result = self.parse_indels(eachpepin)
 												pep_insert_dict_list.append({
-													"aa": aa,
-													"pos": int(pos),
-													"event": event
+													"aa1": result[0],
+													"pos1": int(result[1]),
+													"event": result[2],
+													"aa2": result[3],
+													"pos2": result[4],
+													"deleted": result[5],
+													"full_indel": eachpepin
 													})
 
 									if json_data[model_id]["model_param"].get("41342"): # deletions into peptide seqs
 										for eachpepdel in list(json_data[model_id]["model_param"]["41342"]["param_value"].values()):
 											if "_" in eachpepdel:
-												aa1, pos1, aa2, pos2, deleted = self.parse_indels(eachpepdel)
+												result = self.parse_indels(eachpepdel)
 												pep_del_dict_list.append({
-													"aa1": aa1,
-													"pos1": int(pos1),
-													"aa2": aa2,
-													"pos2": int(pos2),
-													"deleted": deleted
+													"aa1": result[0],
+													"pos1": int(result[1]),
+													"aa2": result[2],
+													"pos2": int(result[3]),
+													"event": result[4],
+													"deleted": result[5],
+													"full_indel": eachpepdel
 													})
 											else:
-												aa, pos, event= self.parse_indels(eachpepdel)
+												result = self.parse_indels(eachpepdel)
 												pep_del_dict_list.append({
-													"aa": aa,
-													"pos": int(pos),
-													"event": event
+													"aa1": result[0],
+													"pos1": int(result[1]),
+													"event": result[2],
+													"aa2": result[3],
+													"pos2": result[4],
+													"deleted" : result[5],
+													"full_indel": eachpepdel
 													})									
-												
+
 									for hsp in alignment.hsps:
 										query_seq =  hsp.query.replace('-', '')
 										real_query_length = len(query_seq)
@@ -135,13 +147,18 @@ class Variant(MutationsModule):
 
 										card_dna_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["dna_sequence"]["sequence"]
 
-										fs_out = self.frameshift(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, fs_dict_list=fs_dict_list)
-										indel_out = self.indel(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def)
+										if fs_dict_list:
+											fs_out = self.frameshift(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, param_type=json_data[model_id]["model_param"]["40494"]["param_type"], fs_dict_list=fs_dict_list)
+										else:
+											fs_out = None
+										if pep_insert_dict_list or pep_del_dict_list:
+											indel_out = self.indel(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, curated_in_list=pep_insert_dict_list, curated_del_list=pep_del_dict_list)
+										else:
+											indel_out = None
 
 										# fetch mutations from MM
 										if fs_out is not None:
 											fs_result.append(fs_out)
-											print(fs_result)
 										if indel_out is not None:
 											indel_result.append(indel_out)
 								else:
@@ -149,7 +166,8 @@ class Variant(MutationsModule):
 						else:
 							fs_result = []
 							indel_result = []
-			except FileNotFoundError as e:
+			# except FileNotFoundError as e:
+			except:
 				traceback.print_exc()
 				logger.info("Skipping PVM extended mutation search...")
 		else:
@@ -254,15 +272,22 @@ class Variant(MutationsModule):
 										other_mutations=mutation_result_filtered, 
 										hsp_bitscore=hsp.bits, 
 										pass_val=true_pass_evalue)
+									
+									print(mm_output)
 
 									if not mm_output:
-										continue			
+										continue
 									
 									mm_record = mm_output[0]
 									curated_mutations = mm_record.get("curated_mutations", None)
-									denovo_mutations = mm_record.get("denovo_mutations", None)
+									de_novo_mutations = mm_record.get("de_novo_mutations", None)
 
 									if float(hsp.bits) >= float(true_pass_evalue):
+										# print("strict")
+										# print(curated_mutations)
+										# print(de_novo_mutations)
+										# print()
+
 										""" Strict hits """
 										sinsidedict = {}
 										sinsidedict["type_match"] = "Strict"
@@ -288,17 +313,17 @@ class Variant(MutationsModule):
 											sinsidedict["orf_from"] = "n/a"
 											
 										if curated_mutations is not None:
-											sinsidedict["curated_mutations"] = '; '.join(m["result"] for m in curated_mutations)
-											sinsidedict["curated_mutation_types"] = '; '.join(m["mutation_type"] for m in curated_mutations)
+											sinsidedict["curated_mutations"] = '; '.join(indiv_mut for mut in curated_mutations.values() for indiv_mut in mut)
+											sinsidedict["curated_mutation_types"] = '; '.join(mt for mt in curated_mutations.keys())
 										else:
 											sinsidedict["curated_mutations"] = "n/a"
 											sinsidedict["curated_mutation_types"] = "n/a"
-										if denovo_mutations is not None:
-											sinsidedict["denovo_mutations"] = '; '.join(m["result"] for m in denovo_mutations)
-											sinsidedict["denovo_mutation_types"] = '; '.join(m["mutation_type"] for m in denovo_mutations)
+										if de_novo_mutations is not None:
+											sinsidedict["de_novo_mutations"] = '; '.join(indiv_mut for mut in de_novo_mutations.values() for indiv_mut in mut)
+											sinsidedict["de_novo_mutation_types"] = '; '.join(mt for mt in de_novo_mutations.keys())
 										else:
-											sinsidedict["denovo_mutations"] = "n/a"
-											sinsidedict["denovo_mutation_types"] = "n/a"
+											sinsidedict["de_novo_mutations"] = "n/a"
+											sinsidedict["de_novo_mutation_types"] = "n/a"
 
 										sinsidedict["model_name"] = json_data[model_id]["model_name"]
 										sinsidedict["model_type"] = json_data[model_id]["model_type"]
@@ -377,6 +402,11 @@ class Variant(MutationsModule):
 										init += 1
 
 									else:
+										# print("loose")
+										# print(curated_mutations)
+										# print(de_novo_mutations)
+										# print()
+
 										""" Loose hits """
 										slinsidedict = {}
 										slinsidedict["type_match"] = "Loose"
@@ -402,17 +432,17 @@ class Variant(MutationsModule):
 											slinsidedict["orf_from"] = "n/a"
 											
 										if curated_mutations is not None:
-											slinsidedict["curated_mutations"] = '; '.join(m["result"] for m in curated_mutations)
-											slinsidedict["curated_mutation_types"] = '; '.join(m["mutation_type"] for m in curated_mutations)
+											slinsidedict["curated_mutations"] = '; '.join(indiv_mut for mut in curated_mutations.values() for indiv_mut in mut)
+											slinsidedict["curated_mutation_types"] = '; '.join(mt for mt in curated_mutations.keys())
 										else:
 											slinsidedict["curated_mutations"] = "n/a"
 											slinsidedict["curated_mutation_types"] = "n/a"
-										if denovo_mutations is not None:
-											slinsidedict["denovo_mutations"] = '; '.join(m["result"] for m in denovo_mutations)
-											slinsidedict["denovo_mutation_types"] = '; '.join(m["mutation_type"] for m in denovo_mutations)
+										if de_novo_mutations is not None:
+											slinsidedict["de_novo_mutations"] = '; '.join(indiv_mut for mut in de_novo_mutations.values() for indiv_mut in mut)
+											slinsidedict["de_novo_mutation_types"] = '; '.join(mt for mt in de_novo_mutations.keys())
 										else:
-											slinsidedict["denovo_mutations"] = "n/a"
-											slinsidedict["denovo_mutation_types"] = "n/a"
+											slinsidedict["de_novo_mutations"] = "n/a"
+											slinsidedict["de_novo_mutation_types"] = "n/a"
 											
 										slinsidedict["model_name"] = json_data[model_id]["model_name"]
 										slinsidedict["model_type"] = json_data[model_id]["model_type"]

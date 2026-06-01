@@ -170,9 +170,11 @@ class MutationsModule(BaseModel):
 
                         # logger.info("query_snp on frame {} {}".format(hsp.frame, json.dumps(query_snps, indent=2)))
 
-    def frameshift(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, fs_dict_list=[]): 
+    def frameshift(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, param_type, fs_dict_list=[]): 
         """
         Searches for frameshifts in sequences.
+
+        CHECK STRIPPED QUERY %3
         """
         
         fs_result_prelim = {}
@@ -296,49 +298,54 @@ class MutationsModule(BaseModel):
         """
         if fs_curated_result_HGVS or fs_denovo_result_HGVS:
             fs_result_prelim["query_def"] = str(query_def)
-            fs_result_prelim["mutation_type"] = "frameshift"
+            fs_result_prelim["mutations"] = {"type": param_type}
 
             # you can change the output syntax here
             if fs_curated_result_HGVS:
-                fs_result_prelim["novelty"] = "curated"
-                fs_result_prelim["result"] = fs_curated_result_HGVS
+                fs_result_prelim["mutations"]["curated"] = fs_curated_result_HGVS
             if fs_denovo_result_HGVS:
-                fs_result_prelim["novelty"] = "de_novo"
-                fs_result_prelim["result"] = fs_denovo_result_HGVS
+                fs_result_prelim["mutations"]["de_novo"] = fs_denovo_result_HGVS
         elif not fs_curated_result_HGVS and not fs_denovo_result_HGVS:
             return None
-
+        
         return fs_result_prelim            
 
-    def indel(self, hsp_query, hsp_sbjct, card_dna_ref, query_def):
+    def indel(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, insert_type="", del_type="", curated_in_list=[], curated_del_list=[]):
         """
         Searches for insertions and deletions in sequences.
-        WIP: curated indels
+        WIP: separate indels by param_type? for now, indels are indels in the RGI output
         WIP: indels that cancel each other out (e.g., 1 ins/1 del)
+        
+        STRIPPED QRY vvvvvv
+        NUMBER OF GAPS % 3
+
         """
         
         # for deletions
-        qry_codon_count = 0
+        deletion = {}
+        qry_codon_pos = 0
 
         # for insertions
-        sbjct_codon_count = 0
+        sbjct_codon_pos = 0
 
         # indel_curated_list_reg = []
-        indel_denovo_list_reg = []
+        # indel_denovo_list_reg = []
 
         # indel_curated_list_validation = []
-        indel_denovo_list_validation = []
+        # indel_denovo_list_validation = []
 
-        # indel_curated_result_HGVS = []
+        indel_curated_result_HGVS = []
         indel_denovo_result_HGVS = []
 
         indel_result_prelim = {}
                         
         split_ref = re.findall('.'*3, card_dna_ref)
 
+        print(query_def)
+
         """ deletions """            
-        ### isolate the position of the indel and the affected codons (plus flanking codons)
-        if "-" in hsp_query:
+        ### isolate the position of the deletion and the affected codons
+        if "-" in hsp_query:            
             ## split the query sequence into a list of codons
             split_qry = re.findall('.'*3, hsp_query)
             stripped_qry = hsp_query.replace("-", "")
@@ -346,84 +353,168 @@ class MutationsModule(BaseModel):
             ## translate the query sequence into a protein (seq stripped of gaps because Seq hates them)
             translated_stripped_qry = str(Seq(stripped_qry).translate(table=11))
 
+            # for x in del_list:
+            #     print(x["pos1"])
+
             ## iterate through query codon list, find gaps + flanks, and note position
-            while qry_codon_count < len(split_qry):  # cannot be <= here because # of items and # of indeces differ, 
-                                                     # so split_qry[3] when there are 3 items (0,1,2) will fail
+            while qry_codon_pos < len(split_qry):  # cannot be <= here because # of items and # of indeces differ, 
+                                                         # so split_qry[3] when there are 3 items (0,1,2) will fail
                 deletion = {}
-                qry_codons = split_qry[qry_codon_count]
+                qry_codons = split_qry[qry_codon_pos]
 
                 if "-" in qry_codons:
-                    beginning_flank = split_qry[qry_codon_count-1]
-                    deletion[qry_codon_count-1] = beginning_flank
+                    qry_beginning_flank = split_qry[qry_codon_pos-1]
+                    deletion[qry_codon_pos-1] = qry_beginning_flank
 
-                    while qry_codon_count < len(split_qry) and "-" in split_qry[qry_codon_count]:
-                        current_codon = split_qry[qry_codon_count]  # snapshot of the current codon
-                        deletion[qry_codon_count] = current_codon
-                        qry_codon_count += 1  # updates our index to the NEXT codon after successfully identifying a gap
-                        
-                    if qry_codon_count < len(split_qry):
-                        ending_flank = split_qry[qry_codon_count]
-                        deletion[qry_codon_count] = ending_flank
+                    while qry_codon_pos < len(split_qry) and "-" in split_qry[qry_codon_pos]:
+                        qry_current_codon = split_qry[qry_codon_pos] # snapshot of the current codon
+                        deletion[qry_codon_pos] = qry_current_codon
+                        qry_codon_pos += 1 # updates our index to the NEXT codon after successfully identifying a gap
+
+                    if qry_codon_pos < len(split_qry):
+                        qry_ending_flank = split_qry[qry_codon_pos]
+                        deletion[qry_codon_pos] = qry_ending_flank
 
                         del_result = self.indel_translator(deletion, split_ref, translated_stripped_qry, indel_type = "deletion")
+                        print("deletion result from MM:\n",del_result,"\n")
+                        if del_result is not None and curated_del_list:
+                            result_range = range(del_result["first_pos"], del_result["last_pos"] + 1)
 
-                        if del_result is not None:
-                            indel_denovo_result_HGVS.append(del_result)
+                            for curated_del in curated_del_list:
+                                print("====================================================")
+                                print("curated deletion:\n",curated_del,"\n*********************************\n")
+                                if curated_del["pos2"] == "n/a":  # format 1 
+                                                                  # if curated_del["deleted"] != "n/a"? do we need that?
+                                    if del_result["first_aa"] == curated_del["aa1"] and del_result["first_pos"] == curated_del["pos1"]:
+                                        indel_curated_result_HGVS.append(curated_del["full_indel"])
+                                        print("positions match! curated deletion here!:", curated_del, "and also", del_result,"\n")
+                                        print("====================================================\n")
+                                    else:
+                                        if del_result["deletion"] not in indel_denovo_result_HGVS:
+                                            indel_denovo_result_HGVS.append(del_result["deletion"]) ## e.g., A15A
+                                            print("this doesn't match! check if it's already in the HGVS list in case it's denovo:",del_result,"\n")
+                                            print("====================================================\n")
+                                else:  # format 2
+                                    del_range = range(curated_del["pos1"], curated_del["pos2"] + 1)
+                                    if all(n in result_range for n in del_range):  # if the positions of the indel found are within the range of the 
+                                                                                   # curated indel
+                                        indel_curated_result_HGVS.append(curated_del["full_indel"])
+                                        print("curated indel found within the range!:",del_result, "and also", curated_del)
+                                        if del_result["first_pos"] != curated_del["pos1"]:
+                                            indel_denovo_result_HGVS.append(del_result["deletion"]) ## e.g., A15A
+                                            print("..... buuuuut positions don't match! de novo:",del_result,"\n")
+                                    else:
+                                        if del_result["deletion"] not in indel_denovo_result_HGVS:
+                                            indel_denovo_result_HGVS.append(del_result["deletion"]) ## e.g., A15A
+                                            print("this doesn't match! check if it's already in the HGVS list in case it's denovo:",del_result,"\n")
+                                            print("====================================================\n")
+                        elif del_result is not None and not curated_del_list:
+                            if del_result["deletion"] not in indel_denovo_result_HGVS:
+                                indel_denovo_result_HGVS.append(del_result["deletion"]) ## e.g., A15A
+                                print("this doesn't match! check if it's already in the HGVS list in case it's denovo:",del_result,"\n")
+                                print("====================================================\n")
                     else:
-                        ending_flank = None
+                        qry_ending_flank = None
 
                 ## for any other nucleotide in the sequence DO NOT COMMENT OUT  
                 else:
-                    qry_codon_count += 1
-
+                    qry_codon_pos += 1
+            
         """ insertions """
-        ### isolate the position of the indel and the affected codons (plus flanking codons)
+        ### isolate the position of the insertion and the affected codons (plus flanking codons)
         if "-" in hsp_sbjct:
             ## split the subject sequence into a list of codons
             split_sbjct = re.findall('.'*3, hsp_sbjct)
+            split_qry = re.findall('.'*3, hsp_query)  # to grab our actual inserted stretch of sequence
             stripped_sbjct = hsp_sbjct.replace("-", "")
             
             ## translate the subject sequence into a protein (seq stripped of gaps because Seq hates them)
             translated_stripped_sbjct = str(Seq(stripped_sbjct).translate(table=11, gap="-"))
 
             ## iterate through query codon list, find gaps + flanks, and note position
-            while sbjct_codon_count < len(split_sbjct):
+            while sbjct_codon_pos < len(split_sbjct):  # cannot be <= here because # of items and # of indeces differ, 
+                                                         # so split_qry[3] when there are 3 items (0,1,2) will fail
                 insertion = {}
-                sbjct_codons = split_sbjct[sbjct_codon_count]
+                sbjct_codons = split_sbjct[sbjct_codon_pos]
 
                 if "-" in sbjct_codons:
-                    sbjct_beginning_flank = split_sbjct[sbjct_codon_count-1]
-                    insertion[sbjct_codon_count-1] = sbjct_beginning_flank
+                    sbjct_beginning_flank = split_sbjct[sbjct_codon_pos-1]
+                    insertion[sbjct_codon_pos-1] = sbjct_beginning_flank
 
-                    while sbjct_codon_count < len(split_sbjct) and "-" in split_sbjct[sbjct_codon_count]:
-                        sbjct_current_codon = split_sbjct[sbjct_codon_count]
-                        insertion[sbjct_codon_count] = sbjct_current_codon
-                        sbjct_codon_count += 1
-                    if sbjct_codon_count < len(split_sbjct):
-                        sbjct_ending_flank = split_sbjct[sbjct_codon_count]
-                        insertion[sbjct_codon_count] = sbjct_ending_flank
+                    while sbjct_codon_pos < len(split_sbjct) and "-" in split_sbjct[sbjct_codon_pos]:
+                        sbjct_current_codon = split_sbjct[sbjct_codon_pos] # snapshot of the current codon
+                        insertion[sbjct_codon_pos] = sbjct_current_codon
+                        sbjct_codon_pos += 1 # updates our index to the NEXT codon after successfully identifying a gap
 
-                        in_result = self.indel_translator(insertion, split_ref, translated_stripped_sbjct, indel_type = "insertion")
+                    if sbjct_codon_pos < len(split_sbjct):
+                        sbjct_ending_flank = split_sbjct[sbjct_codon_pos]
+                        insertion[sbjct_codon_pos] = sbjct_ending_flank
 
-                        if in_result is not None:
-                            indel_denovo_result_HGVS.append(in_result)
+                        insertion_slice = split_qry[next(iter(insertion)) + 1:next(reversed(insertion))]
+                        # print(sbjct_codon_pos, insertion_slice)
+
+                        in_result = self.indel_translator(insertion, insertion_slice, split_ref, translated_stripped_sbjct, indel_type = "insertion")
+                        # print("insertion result from MM:\n",in_result,"\n")
+
+                        if in_result is not None and curated_in_list:
+                            result_range = range(in_result["first_pos"], in_result["last_pos"] + 1)
+
+                            for curated_in in curated_in_list:
+                                print("====================================================")
+                                print("curated insertion:\n",curated_in,"\n*********************************\n")
+                                if curated_in["pos2"] == "n/a":  # format 1 
+                                                                  # if curated_in["inserted"] != "n/a"? do we need that?
+                                    if in_result["first_aa"] == curated_in["aa1"] and in_result["first_pos"] == curated_in["pos1"]:
+                                        indel_curated_result_HGVS.append(curated_in["full_indel"])
+                                        print("positions match! curated insertion here!:", curated_in, "and also", in_result,"\n")
+                                        print("====================================================\n")
+                                    else:
+                                        if in_result["insertion"] not in indel_denovo_result_HGVS:
+                                            indel_denovo_result_HGVS.append(in_result["insertion"]) ## e.g., A15A
+                                            print("this doesn't match! check if it's already in the HGVS list in case it's denovo:",in_result,"\n")
+                                            print("====================================================\n")
+                                else:  # format 2
+                                    del_range = range(curated_in["pos1"], curated_in["pos2"] + 1)
+                                    if all(n in result_range for n in del_range):  # if the positions of the indel found are within the range of the 
+                                                                                   # curated indel
+                                        indel_curated_result_HGVS.append(curated_in["full_indel"])
+                                        print("curated indel found within the range!:",in_result, "and also", curated_in)
+                                        if in_result["first_pos"] != curated_in["pos1"]:
+                                            indel_denovo_result_HGVS.append(in_result["insertion"]) ## e.g., A15A
+                                            print("..... buuuuut positions don't match! de novo:",in_result,"\n")
+                                    else:
+                                        if in_result["insertion"] not in indel_denovo_result_HGVS:
+                                            indel_denovo_result_HGVS.append(in_result["insertion"]) ## e.g., A15A
+                                            print("this doesn't match! check if it's already in the HGVS list in case it's denovo:",in_result,"\n")
+                                            print("====================================================\n")
+                        elif in_result is not None and not curated_in_list:
+                            if in_result["insertion"] not in indel_denovo_result_HGVS:
+                                indel_denovo_result_HGVS.append(in_result["insertion"]) ## e.g., A15A
+                                print("this doesn't match! check if it's already in the HGVS list in case it's denovo:",in_result,"\n")
+                                print("====================================================\n")
                     else:
                         sbjct_ending_flank = None
 
                 ## for any other nucleotide in the sequence DO NOT COMMENT OUT  
                 else:
-                    sbjct_codon_count += 1
-
-        if indel_denovo_result_HGVS:
-            # you can change the output syntax here
+                    sbjct_codon_pos += 1
+        
+        if indel_curated_result_HGVS or indel_denovo_result_HGVS:
             indel_result_prelim["query_def"] = str(query_def)
-            indel_result_prelim["mutation_type"] = "indel"
-            indel_result_prelim["novelty"] = "de_novo"
-            indel_result_prelim["result"] = indel_denovo_result_HGVS
-            
-            return indel_result_prelim
-        else:
+            indel_result_prelim["mutations"] = {"type": "indel mutation from peptide sequence"}
+
+            # you can change the output syntax here
+            if indel_curated_result_HGVS:
+                # print(indel_curated_result_HGVS)
+                indel_result_prelim["mutations"]["curated"] = indel_curated_result_HGVS
+                # print(indel)
+            if indel_denovo_result_HGVS:
+                # print(indel_denovo_result_HGVS)
+                indel_result_prelim["mutations"]["de_novo"] = indel_denovo_result_HGVS
+        elif not indel_curated_result_HGVS and not indel_denovo_result_HGVS:
             return None
+
+        return indel_result_prelim            
 
     def single_fs(self, codon_count, translated_stripped_seq, split_ref):
         aa_pos = codon_count
@@ -445,8 +536,10 @@ class MutationsModule(BaseModel):
         
         return aa_count + 1
     
-    def indel_translator(self, indel, split_ref, translated_stripped_seq, indel_type=None):
+    def indel_translator(self, indel, insertion_slice, split_ref, translated_stripped_seq, indel_type=None):
         unpacked_indel = list(indel.items())
+        # print(unpacked_indel,"\n")
+        in_slice = str(Seq(insertion_slice[0]).translate(table=11))
 
         # validating the positions in our indel to make sure nothing is out of bounds (i've learned my lesson)
         max_pos = max([pos for pos, codon in unpacked_indel])  # finding the max position (our upper bound)
@@ -454,44 +547,84 @@ class MutationsModule(BaseModel):
         if max_pos - 1 >= len(translated_stripped_seq):
             return None
 
-        inordel_codons = ""
+        # inordel_codons = ""
 
-        for i, (position, codon) in enumerate(unpacked_indel):  # we don't actually access codon... but you never know when you'll need it? :^)
-            if i == 0:
-                affected_codon = split_ref[position - 1]
-                original_aa = str(Seq(affected_codon).translate(table=11))
+        if indel_type == "insertion":
+            in_dict = {}
+            for i, (position, codon) in enumerate(unpacked_indel):  # we don't actually access codon... but you never know when you'll need it? :^)
+                # print(i, position, codon)
+                if i == 0:
+                    affected_codon = split_ref[position]
+                    print(affected_codon)
+                    original_aa = str(Seq(affected_codon).translate(table=11))
 
-                beginning_pos = position
-                beginning_flank = original_aa
-            elif i == len(unpacked_indel) - 1:
-                affected_codon = split_ref[position - 1]
-                original_aa = str(Seq(affected_codon).translate(table=11))
+                    beginning_flank = original_aa
+                    beginning_pos = position + 1  # adjusts the position so it isn't just the index of the string
 
-                end_pos = position
-                end_flank = original_aa
-            else:  # everything in between the sandwich
-                new_aa = translated_stripped_seq[position - 1] # index starts at 0
+                    in_dict["first_aa"] = beginning_flank
+                    in_dict["first_pos"] = beginning_pos 
+                elif i == 1:
+                    middle_pos = position + 1
 
-                inordel_codons += new_aa
+                elif i == len(unpacked_indel) - 1:
+                    affected_codon = split_ref[position - 1]
+                    original_aa = str(Seq(affected_codon).translate(table=11))
 
-        if indel_type == "deletion":
-            indel = f"{beginning_flank}{beginning_pos}_{end_flank}{end_pos}del{inordel_codons}"
-            return indel
-        elif indel_type == "insertion":
-            indel = f"{beginning_flank}{beginning_pos}_{end_flank}{end_pos}ins{inordel_codons}"
-            return indel
+                    end_flank = original_aa
+                    end_pos = position + 1
+
+                    in_dict["last_aa"] = end_flank
+                    in_dict["last_pos"] = end_pos
+
+                else:  # everything in between the sandwich
+                    new_aa = translated_stripped_seq[position - 1] # index starts at 0
+
+                    # inordel_codons += new_aa
+            
+            in_dict["insertion"] = f"{beginning_flank}{beginning_pos}_{end_flank}{middle_pos}ins{in_slice}"
+
+            return in_dict
+        else:
+            del_dict = {}
+            for i, (position, codon) in enumerate(unpacked_indel):
+                if i == 1:
+                    affected_codon = split_ref[position - 1]
+                    original_aa = str(Seq(affected_codon).translate(table=11))
+
+                    first_aa = original_aa  # deletions don't have flanks--the first aa reported is where the deletion starts (index 1, not 0)
+                    first_pos = position + 1
+
+                    del_dict["first_aa"] = first_aa
+                    del_dict["first_pos"] = first_pos 
+                elif i == len(unpacked_indel) - 2:
+                    affected_codon = split_ref[position - 1]
+                    original_aa = str(Seq(affected_codon).translate(table=11))
+
+                    last_aa = original_aa
+                    last_pos = position + 1
+                    del_dict["last_aa"] = last_aa
+                    del_dict["last_pos"] = last_pos
+                else: 
+                    new_aa = translated_stripped_seq[position - 1]
+
+                    inordel_codons += new_aa
+            
+            del_dict["deletion"] = f"{first_aa}{first_pos}_{last_aa}{last_pos}del{inordel_codons}"
+
+            return del_dict
 
     def consolidate_mutations(self, input_type, hit_id, model_type, srv=None, other_mutations=[], phm=None, hsp_bitscore=None, pass_val=None):
         """
-        Consolidates the results from all mutation functions and passes the output back into RGI's detection modules (PHM, PVM, POM,    RGV).
+        Consolidates the results from all mutation functions and passes the output back into RGI's detection modules (PHM, PVM, POM, RGV).
         """
 
         has_snp = srv.get("has_snp", False) if srv is not None else False  # the PHM does not generate srv, so this avoids an AttributeError
         passes_eval = float(hsp_bitscore) >= float(pass_val)
-
+        # print("other mut for CM:",other_mutations)
         merged_mutations = {
-            "curated_mutations": [],
-            "denovo_mutations": []
+            "query_def": "",
+            "curated_mutations": None,
+            "de_novo_mutations": None
         }
 
         # protein input
@@ -515,19 +648,25 @@ class MutationsModule(BaseModel):
 
                     # building out our nested dictionary of mutations lists (in subdictionaries...)
                     # we want rich merged output
-                    for result in mutations["result"]:
-                        mutation_entry = {
-                            "mutation_type": mutations["mutation_type"],
-                            "result": result
+                    if mutations["mutations"].get("curated"):
+                        curated_entry = {
+                            mutations["mutations"]["type"]: mutations["mutations"]["curated"],
                         }
+                        merged_mutations["curated_mutations"] = curated_entry
 
-                        if mutations["novelty"] == "curated":
-                            merged_mutations["curated_mutations"].append(mutation_entry)
-                        elif mutations["novelty"] == "de_novo":
-                            merged_mutations["denovo_mutations"].append(mutation_entry)
+                    if mutations["mutations"].get("de_novo"):
+                        de_novo_entry = {
+                            mutations["mutations"]["type"]: mutations["mutations"]["de_novo"],
+                        }
+                        merged_mutations["de_novo_mutations"] = de_novo_entry
 
-                has_curated_mutation = len(merged_mutations["curated_mutations"]) > 0
-                has_denovo_mutation = len(merged_mutations["denovo_mutations"]) > 0
+                    # if mutations["mutations"]["curated"]:
+                    #     merged_mutations["curated_mutations"] = curated_entry
+                    # if mutations["mutations"]["de_novo"]:
+                    #     merged_mutations["de_novo_mutations"] = de_novo_entry
+
+                has_curated_mutation = merged_mutations.get("curated_mutations") is not None
+                has_denovo_mutation = merged_mutations.get("de_novo_mutations") is not None
                 has_other_mutations = has_curated_mutation or has_denovo_mutation
 
                 if srv is not None:
