@@ -97,39 +97,51 @@ class Overexpression(MutationsModule):
 									if json_data[model_id]["model_param"].get("41344"):  # insertions into peptide seqs
 										for eachpepin in list(json_data[model_id]["model_param"]["41344"]["param_value"].values()):
 											if "_" in eachpepin:
-												aa1, pos1, aa2, pos2, inserted = self.parse_indels(eachpepin)
+												result = self.parse_indels(eachpepin)
 												pep_insert_dict_list.append({
-													"aa1": aa1,
-													"pos1": int(pos1),
-													"aa2": aa2,
-													"pos2": int(pos2),
-													"inserted": inserted
+													"aa1": result[0],
+													"pos1": int(result[1]),
+													"aa2": result[2],
+													"pos2": int(result[3]),
+													"event": result[4],
+													"deleted": result[5],
+													"full_indel": eachpepin
 													})
 											else:
-												aa, pos, event = self.parse_indels(eachpepin)
+												result = self.parse_indels(eachpepin)
 												pep_insert_dict_list.append({
-													"aa": aa,
-													"pos": int(pos),
-													"event": event
+													"aa1": result[0],
+													"pos1": int(result[1]),
+													"event": result[2],
+													"aa2": result[3],
+													"pos2": result[4],
+													"deleted": result[5],
+													"full_indel": eachpepin
 													})
 
 									if json_data[model_id]["model_param"].get("41342"): # deletions into peptide seqs
 										for eachpepdel in list(json_data[model_id]["model_param"]["41342"]["param_value"].values()):
 											if "_" in eachpepdel:
-												aa1, pos1, aa2, pos2, deleted = self.parse_indels(eachpepdel)
+												result = self.parse_indels(eachpepdel)
 												pep_del_dict_list.append({
-													"aa1": aa1,
-													"pos1": int(pos1),
-													"aa2": aa2,
-													"pos2": int(pos2),
-													"deleted": deleted
+													"aa1": result[0],
+													"pos1": int(result[1]),
+													"aa2": result[2],
+													"pos2": int(result[3]),
+													"event": result[4],
+													"deleted": result[5],
+													"full_indel": eachpepdel
 													})
 											else:
-												aa, pos, event = self.parse_indels(eachpepdel)
+												result = self.parse_indels(eachpepdel)
 												pep_del_dict_list.append({
-													"aa": aa,
-													"pos": int(pos),
-													"event": event
+													"aa1": result[0],
+													"pos1": int(result[1]),
+													"event": result[2],
+													"aa2": result[3],
+													"pos2": result[4],
+													"deleted" : result[5],
+													"full_indel": eachpepdel
 													})									
 																		
 									for hsp in alignment.hsps:
@@ -140,8 +152,14 @@ class Overexpression(MutationsModule):
 
 										card_dna_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["dna_sequence"]["sequence"]
 
-										fs_out = self.frameshift(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, fs_dict_list=fs_dict_list)
-										indel_out = self.indel(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def)
+										if fs_dict_list:
+											fs_out = self.frameshift(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, param_type=json_data[model_id]["model_param"]["40494"]["param_type"], fs_dict_list=fs_dict_list)
+										else:
+											fs_out = None
+										if pep_insert_dict_list or pep_del_dict_list:
+											indel_out = self.indel(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, curated_in_list=pep_insert_dict_list, curated_del_list=pep_del_dict_list)
+										else:
+											indel_out = None
 
 										# fetch mutations from MM
 										if fs_out is not None:
@@ -370,8 +388,8 @@ class Overexpression(MutationsModule):
 									mm_record = mm_output[0] if mm_output else None
 									has_snp = mm_record.get("has_snp", False) if mm_record else False
 									curated_mutations = mm_record.get("curated_mutations", []) if mm_record else []
-									denovo_mutations = mm_record.get("denovo_mutations", []) if mm_record else []
-									has_other_mutations = bool(curated_mutations or denovo_mutations)
+									de_novo_mutations = mm_record.get("de_novo_mutations", []) if mm_record else []
+									has_other_mutations = bool(curated_mutations or de_novo_mutations)
 
 									if float(hsp.bits) >= float(pass_bitscore):
 										if has_snp:
@@ -412,15 +430,15 @@ class Overexpression(MutationsModule):
 												"model_sequences"]["sequence"][seqinModel]["dna_sequence"]["sequence"]
 											
 											if has_other_mutations:
-												sinsidedict["curated_mutations"] = "; ".join(m["result"] for m in curated_mutations) if curated_mutations else "n/a"
-												sinsidedict["curated_mutation_types"] = "; ".join(m["mutation_type"] for m in curated_mutations) if curated_mutations else "n/a"
-												sinsidedict["denovo_mutations"] = "; ".join(m["result"] for m in denovo_mutations) if denovo_mutations else "n/a"
-												sinsidedict["denovo_mutation_types"] = "; ".join(m["mutation_type"] for m in denovo_mutations) if denovo_mutations else "n/a"
+												sinsidedict["curated_mutations"] = '; '.join(indiv_mut for mut in curated_mutations.values() for indiv_mut in mut) if curated_mutations else "n/a"
+												sinsidedict["curated_mutation_types"] = '; '.join(mt for mt in curated_mutations.keys()) if curated_mutations else "n/a"
+												sinsidedict["denovo_mutations"] = '; '.join(indiv_mut for mut in de_novo_mutations.values() for indiv_mut in mut) if de_novo_mutations else "n/a"
+												sinsidedict["denovo_mutation_types"] = '; '.join(mt for mt in de_novo_mutations.keys()) if de_novo_mutations else "n/a"
 											else:
 												sinsidedict["curated_mutations"] = "n/a"
 												sinsidedict["curated_mutation_types"] = "n/a"
-												sinsidedict["denovo_mutations"] = "n/a"
-												sinsidedict["denovo_mutation_types"] = "n/a"
+												sinsidedict["de_novo_mutations"] = "n/a"
+												sinsidedict["de_novo_mutation_types"] = "n/a"
 
 											if "partial" in json_data[modelID]["model_sequences"]["sequence"][seqinModel]["dna_sequence"].keys():
 												sinsidedict["partial"] = json_data[modelID]["model_sequences"][
@@ -511,15 +529,15 @@ class Overexpression(MutationsModule):
 												"model_sequences"]["sequence"][seqinModel]["dna_sequence"]["sequence"]
 											
 											if has_other_mutations:
-												insidedict["curated_mutations"] = "; ".join(m["result"] for m in curated_mutations) if curated_mutations else "n/a"
-												insidedict["curated_mutation_types"] = "; ".join(m["mutation_type"] for m in curated_mutations) if curated_mutations else "n/a"
-												insidedict["denovo_mutations"] = "; ".join(m["result"] for m in denovo_mutations) if denovo_mutations else "n/a"
-												insidedict["denovo_mutation_types"] = "; ".join(m["mutation_type"] for m in denovo_mutations) if denovo_mutations else "n/a"
+												insidedict["curated_mutations"] = '; '.join(indiv_mut for mut in curated_mutations.values() for indiv_mut in mut) if curated_mutations else "n/a"
+												insidedict["curated_mutation_types"] = '; '.join(mt for mt in curated_mutations.keys()) if curated_mutations else "n/a"
+												insidedict["denovo_mutations"] = '; '.join(indiv_mut for mut in de_novo_mutations.values() for indiv_mut in mut) if de_novo_mutations else "n/a"
+												insidedict["denovo_mutation_types"] = '; '.join(mt for mt in de_novo_mutations.keys()) if de_novo_mutations else "n/a"
 											else:
 												insidedict["curated_mutations"] = "n/a"
 												insidedict["curated_mutation_types"] = "n/a"
-												insidedict["denovo_mutations"] = "n/a"
-												insidedict["denovo_mutation_types"] = "n/a"
+												insidedict["de_novo_mutations"] = "n/a"
+												insidedict["de_novo_mutation_types"] = "n/a"
 
 											if "partial" in json_data[modelID]["model_sequences"]["sequence"][seqinModel]["dna_sequence"].keys():
 												insidedict["partial"] = json_data[modelID]["model_sequences"][
@@ -620,15 +638,15 @@ class Overexpression(MutationsModule):
 											"model_sequences"]["sequence"][seqinModel]["dna_sequence"]["sequence"]
 										
 										if has_other_mutations:
-											linsidedict["curated_mutations"] = "; ".join(m["result"] for m in curated_mutations) if curated_mutations else "n/a"
-											linsidedict["curated_mutation_types"] = "; ".join(m["mutation_type"] for m in curated_mutations) if curated_mutations else "n/a"
-											linsidedict["denovo_mutations"] = "; ".join(m["result"] for m in denovo_mutations) if denovo_mutations else "n/a"
-											linsidedict["denovo_mutation_types"] = "; ".join(m["mutation_type"] for m in denovo_mutations) if denovo_mutations else "n/a"
+											linsidedict["curated_mutations"] = '; '.join(indiv_mut for mut in curated_mutations.values() for indiv_mut in mut) if curated_mutations else "n/a"
+											linsidedict["curated_mutation_types"] = '; '.join(mt for mt in curated_mutations.keys()) if curated_mutations else "n/a"
+											linsidedict["denovo_mutations"] = '; '.join(indiv_mut for mut in de_novo_mutations.values() for indiv_mut in mut) if de_novo_mutations else "n/a"
+											linsidedict["denovo_mutation_types"] = '; '.join(mt for mt in de_novo_mutations.keys()) if de_novo_mutations else "n/a"
 										else:
 											linsidedict["curated_mutations"] = "n/a"
 											linsidedict["curated_mutation_types"] = "n/a"
-											linsidedict["denovo_mutations"] = "n/a"
-											linsidedict["denovo_mutation_types"] = "n/a"
+											linsidedict["de_novo_mutations"] = "n/a"
+											linsidedict["de_novo_mutation_types"] = "n/a"
 
 										if "partial" in json_data[modelID]["model_sequences"]["sequence"][seqinModel]["dna_sequence"].keys():
 											linsidedict["partial"] = json_data[modelID]["model_sequences"][

@@ -75,7 +75,7 @@ class Homolog(MutationsModule):
 
                                 modelTypeID = self.extract_nth_bar(alignTitle, 0)
                                 
-                                if modelTypeID == 40292: ## homologs don't have curated frameshifts anyway                                                                                                
+                                if modelTypeID == 40292: ## homologs don't have curated frameshifts anyway
                                     for hsp in alignment.hsps:
                                         card_dna_ref = json_data[modelID]["model_sequences"]["sequence"][seqinModel]["dna_sequence"]["sequence"]
                                         

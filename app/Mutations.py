@@ -170,7 +170,7 @@ class MutationsModule(BaseModel):
 
                         # logger.info("query_snp on frame {} {}".format(hsp.frame, json.dumps(query_snps, indent=2)))
 
-    def frameshift(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, param_type, fs_dict_list=[]): 
+    def frameshift(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, param_type=None, fs_dict_list=[]): 
         """
         Searches for frameshifts in sequences.
         """
@@ -296,7 +296,10 @@ class MutationsModule(BaseModel):
         """
         if fs_curated_result_HGVS or fs_denovo_result_HGVS:
             fs_result_prelim["query_def"] = str(query_def)
-            fs_result_prelim["mutations"] = {"type": param_type}
+            if param_type:
+                fs_result_prelim["mutations"] = {"type": param_type}
+            else:
+                fs_result_prelim["mutations"] = {"type": "frameshift mutation"}
 
             # you can change the output syntax here
             if fs_curated_result_HGVS:
@@ -377,38 +380,38 @@ class MutationsModule(BaseModel):
                             result_range = range(del_result["first_pos"], del_result["last_pos"] + 1)
 
                             for curated_del in curated_del_list:
-                                print("====================================================")
-                                print("curated deletion:\n",curated_del,"\n*********************************\n")
+                                # print("====================================================")
+                                # print("curated deletion:\n",curated_del,"\n*********************************\n")
                                 if curated_del["pos2"] == "n/a":  # format 1 
                                                                   # if curated_del["deleted"] != "n/a"? do we need that?
                                     if del_result["first_aa"] == curated_del["aa1"] and del_result["first_pos"] == curated_del["pos1"]:
                                         indel_curated_result_HGVS.append(curated_del["full_indel"])
-                                        print("positions match! curated deletion here!:", curated_del, "and also", del_result,"\n")
-                                        print("====================================================\n")
+                                        # print("positions match! curated deletion here!:", curated_del, "and also", del_result,"\n")
+                                        # print("====================================================\n")
                                     else:
                                         if del_result["deletion"] not in indel_denovo_result_HGVS:
                                             indel_denovo_result_HGVS.append(del_result["deletion"]) ## e.g., A15A
-                                            print("this doesn't match! check if it's already in the HGVS list in case it's denovo:",del_result,"\n")
-                                            print("====================================================\n")
+                                            # print("this doesn't match! check if it's already in the HGVS list in case it's denovo:",del_result,"\n")
+                                            # print("====================================================\n")
                                 else:  # format 2
                                     del_range = range(curated_del["pos1"], curated_del["pos2"] + 1)
                                     if all(n in result_range for n in del_range):  # if the positions of the indel found are within the range of the 
                                                                                    # curated indel
                                         indel_curated_result_HGVS.append(curated_del["full_indel"])
-                                        print("curated indel found within the range!:",del_result, "and also", curated_del)
+                                        # print("curated indel found within the range!:",del_result, "and also", curated_del)
                                         if del_result["first_pos"] != curated_del["pos1"]:
                                             indel_denovo_result_HGVS.append(del_result["deletion"]) ## e.g., A15A
-                                            print("..... buuuuut positions don't match! de novo:",del_result,"\n")
+                                            # print("..... buuuuut positions don't match! de novo:",del_result,"\n")
                                     else:
                                         if del_result["deletion"] not in indel_denovo_result_HGVS:
                                             indel_denovo_result_HGVS.append(del_result["deletion"]) ## e.g., A15A
-                                            print("this doesn't match! check if it's already in the HGVS list in case it's denovo:",del_result,"\n")
-                                            print("====================================================\n")
+                                            # print("this doesn't match! check if it's already in the HGVS list in case it's denovo:",del_result,"\n")
+                                            # print("====================================================\n")
                         elif del_result is not None and not curated_del_list:
                             if del_result["deletion"] not in indel_denovo_result_HGVS:
                                 indel_denovo_result_HGVS.append(del_result["deletion"]) ## e.g., A15A
-                                print("this doesn't match! check if it's already in the HGVS list in case it's denovo:",del_result,"\n")
-                                print("====================================================\n")
+                                # print("this doesn't match! check if it's already in the HGVS list in case it's denovo:",del_result,"\n")
+                                # print("====================================================\n")
                     else:
                         qry_ending_flank = None
 
@@ -458,38 +461,38 @@ class MutationsModule(BaseModel):
                             result_range = range(in_result["first_pos"], in_result["last_pos"] + 1)
 
                             for curated_in in curated_in_list:
-                                print("====================================================")
-                                print("curated insertion:\n",curated_in,"\n*********************************\n")
+                                # print("====================================================")
+                                # print("curated insertion:\n",curated_in,"\n*********************************\n")
                                 if curated_in["pos2"] == "n/a":  # format 1 
                                                                   # if curated_in["inserted"] != "n/a"? do we need that?
                                     if in_result["first_aa"] == curated_in["aa1"] and in_result["first_pos"] == curated_in["pos1"]:
                                         indel_curated_result_HGVS.append(curated_in["full_indel"])
-                                        print("positions match! curated insertion here!:", curated_in, "and also", in_result,"\n")
-                                        print("====================================================\n")
+                                        # print("positions match! curated insertion here!:", curated_in, "and also", in_result,"\n")
+                                        # print("====================================================\n")
                                     else:
                                         if in_result["insertion"] not in indel_denovo_result_HGVS:
                                             indel_denovo_result_HGVS.append(in_result["insertion"]) ## e.g., A15A
-                                            print("this doesn't match! check if it's already in the HGVS list in case it's denovo:",in_result,"\n")
-                                            print("====================================================\n")
+                                            # print("this doesn't match! check if it's already in the HGVS list in case it's denovo:",in_result,"\n")
+                                            # print("====================================================\n")
                                 else:  # format 2
                                     del_range = range(curated_in["pos1"], curated_in["pos2"] + 1)
                                     if all(n in result_range for n in del_range):  # if the positions of the indel found are within the range of the 
                                                                                    # curated indel
                                         indel_curated_result_HGVS.append(curated_in["full_indel"])
-                                        print("curated indel found within the range!:",in_result, "and also", curated_in)
+                                        # print("curated indel found within the range!:",in_result, "and also", curated_in)
                                         if in_result["first_pos"] != curated_in["pos1"]:
                                             indel_denovo_result_HGVS.append(in_result["insertion"]) ## e.g., A15A
-                                            print("..... buuuuut positions don't match! de novo:",in_result,"\n")
+                                            # print("..... buuuuut positions don't match! de novo:",in_result,"\n")
                                     else:
                                         if in_result["insertion"] not in indel_denovo_result_HGVS:
                                             indel_denovo_result_HGVS.append(in_result["insertion"]) ## e.g., A15A
-                                            print("this doesn't match! check if it's already in the HGVS list in case it's denovo:",in_result,"\n")
-                                            print("====================================================\n")
+                                            # print("this doesn't match! check if it's already in the HGVS list in case it's denovo:",in_result,"\n")
+                                            # print("====================================================\n")
                         elif in_result is not None and not curated_in_list:
                             if in_result["insertion"] not in indel_denovo_result_HGVS:
                                 indel_denovo_result_HGVS.append(in_result["insertion"]) ## e.g., A15A
-                                print("this doesn't match! check if it's already in the HGVS list in case it's denovo:",in_result,"\n")
-                                print("====================================================\n")
+                                # print("this doesn't match! check if it's already in the HGVS list in case it's denovo:",in_result,"\n")
+                                # print("====================================================\n")
                     else:
                         sbjct_ending_flank = None
 
@@ -691,10 +694,10 @@ class MutationsModule(BaseModel):
                     phm_id = phm["query_def"].split()[0]
                 
                     if mutation_id in phm_id:
-                        if passes_eval and has_denovo_mutation :
+                        if passes_eval and has_denovo_mutation:  # Strict alignments
                             # Perfect PHMs will not have frameshifts (etc.) in them, so there's no need to add unique support for them here
                             merged_mutations["query_def"] += hit_id
                             return [merged_mutations]
-                        elif not passes_eval and has_denovo_mutation:
+                        elif not passes_eval and has_denovo_mutation:  # Loose alignments (always de novo with PHM)
                             merged_mutations["query_def"] += hit_id
                             return [merged_mutations]
