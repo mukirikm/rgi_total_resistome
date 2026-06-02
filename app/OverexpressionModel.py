@@ -384,7 +384,7 @@ class Overexpression(MutationsModule):
 										hsp_bitscore=hsp.bits, 
 										pass_val=pass_bitscore
 										)
-																		
+									
 									mm_record = mm_output[0] if mm_output else None
 									has_snp = mm_record.get("has_snp", False) if mm_record else False
 									curated_mutations = mm_record.get("curated_mutations", []) if mm_record else []
@@ -598,7 +598,7 @@ class Overexpression(MutationsModule):
 										if mm_record is not None and "eachs" in mm_record:
 											linsidedict["snp"] = mm_record["eachs"]
 											linsidedict["ast_source"] = self.get_ast_source(
-													json_data[model_id], mm_record["eachs"])
+													json_data[modelID], mm_record["eachs"])
 											linsidedict["orf_strand"] = self.extract_nth_bar(
 												orfInfo.decode(), 0)
 											linsidedict["orf_start"] = self.extract_nth_bar(

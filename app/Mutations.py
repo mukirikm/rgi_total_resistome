@@ -170,7 +170,7 @@ class MutationsModule(BaseModel):
 
                         # logger.info("query_snp on frame {} {}".format(hsp.frame, json.dumps(query_snps, indent=2)))
 
-    def frameshift(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, param_type=None, fs_dict_list=[]): 
+    def frameshift(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, param_type=None, fs_dict_list=None): 
         """
         Searches for frameshifts in sequences.
         """
@@ -185,6 +185,9 @@ class MutationsModule(BaseModel):
 
         fs_curated_result_HGVS = []
         fs_denovo_result_HGVS = []
+
+        if fs_dict_list is None:
+            fs_dict_list = []
 
         # for deletions
         qry_codon_pos = 0
@@ -311,7 +314,7 @@ class MutationsModule(BaseModel):
         
         return fs_result_prelim            
 
-    def indel(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, insert_type="", del_type="", curated_in_list=[], curated_del_list=[]):
+    def indel(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, insert_type="", del_type="", curated_in_list=None, curated_del_list=None):
         """
         Searches for insertions and deletions in sequences.
         WIP: separate indels by param_type? for now, indels are indels in the RGI output
@@ -324,6 +327,11 @@ class MutationsModule(BaseModel):
 
         # for insertions
         sbjct_codon_pos = 0
+
+        if curated_in_list is None:
+            curated_in_list = []
+        if curated_del_list is None:
+            curated_del_list = []
 
         # indel_curated_list_reg = []
         # indel_denovo_list_reg = []
@@ -534,8 +542,11 @@ class MutationsModule(BaseModel):
         
         return aa_count + 1
     
-    def indel_translator(self, indel, split_ref, translated_stripped_seq, insertion_slice=[], indel_type=None):
+    def indel_translator(self, indel, split_ref, translated_stripped_seq, insertion_slice=None, indel_type=None):            
         unpacked_indel = list(indel.items())
+
+        if insertion_slice is None:
+            insertion_slice = []
 
         # validating the positions in our indel to make sure nothing is out of bounds (i've learned my lesson)
         max_pos = max([pos for pos, codon in unpacked_indel])  # finding the max position (our upper bound)
@@ -607,7 +618,7 @@ class MutationsModule(BaseModel):
 
             return del_dict
 
-    def consolidate_mutations(self, input_type, hit_id, model_type, srv=None, other_mutations=[], phm=None, hsp_bitscore=None, pass_val=None):
+    def consolidate_mutations(self, input_type, hit_id, model_type, srv=None, other_mutations=None, phm=None, hsp_bitscore=None, pass_val=None):
         """
         Consolidates the results from all mutation functions and passes the output back into RGI's detection modules (PHM, PVM, POM, RGV).
         """
@@ -619,6 +630,9 @@ class MutationsModule(BaseModel):
             "curated_mutations": None,
             "de_novo_mutations": None
         }
+
+        if other_mutations is None:
+            other_mutations = []
 
         # protein input
         if input_type == "protein":
