@@ -625,19 +625,27 @@ class BaseModel(object):
             return None
     
     def parse_indels(self, indel):
-        if "_" in indel:  # e.g., D244_V245del
-            match = re.match(r"([A-Z])(\d+)_([A-Z])(\d+)(?:ins|del)([A-Z]+)", indel)  # capture everything except the words ins/del
+        if "_" in indel:  # e.g., N74_Q76del or N74_Q76delMP
+            match = re.match(r"([A-Z])(\d+)_([A-Z])(\d+)(ins|del)([A-Z]+)?", indel)  # capture everything except the words ins/del == (?:ins|del)
 
             if match:
-                aa1, pos1, aa2, pos2, event = match.groups()
-                return aa1, pos1, aa2, pos2, event
-            return None
+                aa1, pos1, aa2, pos2, event, inordel = match.groups()
+                
+                # inordel can be an actual value or, if it doesn't exists and is None, will be assigned "n/a"
+                return aa1, pos1, aa2, pos2, event, inordel or "n/a"  
+            else:
+                return None
         else:  # e.g., I170del
             match = re.match(r"([A-Z])(\d+)(ins|del)", indel)  # capture everything PLUS the words ins/del
 
             if match:
-                aa, pos, event = match.groups()
-                return aa, pos, event
-            return None
+                aa2 = "n/a"
+                pos2 = "n/a"
+                inordel = "n/a"
+                
+                aa1, pos1, event = match.groups()
+                return aa1, pos1, event, aa2, pos2, inordel
+            else:
+                return None
 
 

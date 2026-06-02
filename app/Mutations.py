@@ -173,8 +173,6 @@ class MutationsModule(BaseModel):
     def frameshift(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, param_type, fs_dict_list=[]): 
         """
         Searches for frameshifts in sequences.
-
-        CHECK STRIPPED QUERY %3
         """
         
         fs_result_prelim = {}
@@ -208,7 +206,7 @@ class MutationsModule(BaseModel):
 
             ## iterate through query codon list, find gaps, note position, and grab all relevant information
             for qry_codons in split_qry:
-                if "-" in qry_codons:
+                if "-" in qry_codons and len(''.join(split_qry)) % 3 == 0:    
                     qry_codon_pos += 1  # in a biological context, codons do not start "indexing" at 0; they start at 1
 
                     if qry_codon_pos <= len(translated_stripped_qry):
@@ -258,7 +256,7 @@ class MutationsModule(BaseModel):
 
             ## iterate through subject codon list, find gaps, note position, and grab all relevant information
             for sbjct_codons in split_sbjct:
-                if "-" in sbjct_codons:
+                if "-" in sbjct_codons and len(''.join(split_sbjct)) % 3 == 0:
                     sbjct_codon_pos += 1
                     
                     if sbjct_codon_pos <= len(translated_stripped_sbjct):
@@ -315,10 +313,6 @@ class MutationsModule(BaseModel):
         Searches for insertions and deletions in sequences.
         WIP: separate indels by param_type? for now, indels are indels in the RGI output
         WIP: indels that cancel each other out (e.g., 1 ins/1 del)
-        
-        STRIPPED QRY vvvvvv
-        NUMBER OF GAPS % 3
-
         """
         
         # for deletions
@@ -340,21 +334,17 @@ class MutationsModule(BaseModel):
         indel_result_prelim = {}
                         
         split_ref = re.findall('.'*3, card_dna_ref)
-
-        print(query_def)
+        split_sbjct = re.findall('.'*3, hsp_sbjct)
+        split_qry = re.findall('.'*3, hsp_query)  # to grab our actual inserted stretch of sequence
 
         """ deletions """            
         ### isolate the position of the deletion and the affected codons
         if "-" in hsp_query:            
             ## split the query sequence into a list of codons
-            split_qry = re.findall('.'*3, hsp_query)
             stripped_qry = hsp_query.replace("-", "")
 
             ## translate the query sequence into a protein (seq stripped of gaps because Seq hates them)
             translated_stripped_qry = str(Seq(stripped_qry).translate(table=11))
-
-            # for x in del_list:
-            #     print(x["pos1"])
 
             ## iterate through query codon list, find gaps + flanks, and note position
             while qry_codon_pos < len(split_qry):  # cannot be <= here because # of items and # of indeces differ, 
@@ -375,8 +365,13 @@ class MutationsModule(BaseModel):
                         qry_ending_flank = split_qry[qry_codon_pos]
                         deletion[qry_codon_pos] = qry_ending_flank
 
-                        del_result = self.indel_translator(deletion, split_ref, translated_stripped_qry, indel_type = "deletion")
-                        print("deletion result from MM:\n",del_result,"\n")
+                        deletion_slice = split_sbjct[next(iter(deletion)) + 1:next(reversed(deletion))]
+                        
+                        if len(''.join(deletion_slice)) % 3 == 0:  # checking that our deletion is clean codons and doesn't shift the frame
+                            del_result = self.indel_translator(deletion, split_ref, translated_stripped_qry, indel_type = "deletion")
+                        else:
+                            return None
+
                         if del_result is not None and curated_del_list:
                             result_range = range(del_result["first_pos"], del_result["last_pos"] + 1)
 
@@ -424,8 +419,6 @@ class MutationsModule(BaseModel):
         ### isolate the position of the insertion and the affected codons (plus flanking codons)
         if "-" in hsp_sbjct:
             ## split the subject sequence into a list of codons
-            split_sbjct = re.findall('.'*3, hsp_sbjct)
-            split_qry = re.findall('.'*3, hsp_query)  # to grab our actual inserted stretch of sequence
             stripped_sbjct = hsp_sbjct.replace("-", "")
             
             ## translate the subject sequence into a protein (seq stripped of gaps because Seq hates them)
@@ -451,10 +444,11 @@ class MutationsModule(BaseModel):
                         insertion[sbjct_codon_pos] = sbjct_ending_flank
 
                         insertion_slice = split_qry[next(iter(insertion)) + 1:next(reversed(insertion))]
-                        # print(sbjct_codon_pos, insertion_slice)
 
-                        in_result = self.indel_translator(insertion, insertion_slice, split_ref, translated_stripped_sbjct, indel_type = "insertion")
-                        # print("insertion result from MM:\n",in_result,"\n")
+                        if len(''.join(insertion_slice)) % 3 == 0:  # checking that our insertion is clean codons and doesn't shift the frame
+                            in_result = self.indel_translator(insertion, split_ref, translated_stripped_sbjct, insertion_slice=insertion_slice, indel_type = "insertion")
+                        else:
+                            return None
 
                         if in_result is not None and curated_in_list:
                             result_range = range(in_result["first_pos"], in_result["last_pos"] + 1)
@@ -505,11 +499,8 @@ class MutationsModule(BaseModel):
 
             # you can change the output syntax here
             if indel_curated_result_HGVS:
-                # print(indel_curated_result_HGVS)
                 indel_result_prelim["mutations"]["curated"] = indel_curated_result_HGVS
-                # print(indel)
             if indel_denovo_result_HGVS:
-                # print(indel_denovo_result_HGVS)
                 indel_result_prelim["mutations"]["de_novo"] = indel_denovo_result_HGVS
         elif not indel_curated_result_HGVS and not indel_denovo_result_HGVS:
             return None
@@ -536,10 +527,8 @@ class MutationsModule(BaseModel):
         
         return aa_count + 1
     
-    def indel_translator(self, indel, insertion_slice, split_ref, translated_stripped_seq, indel_type=None):
+    def indel_translator(self, indel, split_ref, translated_stripped_seq, insertion_slice=[], indel_type=None):
         unpacked_indel = list(indel.items())
-        # print(unpacked_indel,"\n")
-        in_slice = str(Seq(insertion_slice[0]).translate(table=11))
 
         # validating the positions in our indel to make sure nothing is out of bounds (i've learned my lesson)
         max_pos = max([pos for pos, codon in unpacked_indel])  # finding the max position (our upper bound)
@@ -547,15 +536,15 @@ class MutationsModule(BaseModel):
         if max_pos - 1 >= len(translated_stripped_seq):
             return None
 
-        # inordel_codons = ""
+        del_codons = ""
 
         if indel_type == "insertion":
             in_dict = {}
+            in_slice = str(Seq(insertion_slice[0]).translate(table=11))
+
             for i, (position, codon) in enumerate(unpacked_indel):  # we don't actually access codon... but you never know when you'll need it? :^)
-                # print(i, position, codon)
                 if i == 0:
                     affected_codon = split_ref[position]
-                    print(affected_codon)
                     original_aa = str(Seq(affected_codon).translate(table=11))
 
                     beginning_flank = original_aa
@@ -578,8 +567,6 @@ class MutationsModule(BaseModel):
 
                 else:  # everything in between the sandwich
                     new_aa = translated_stripped_seq[position - 1] # index starts at 0
-
-                    # inordel_codons += new_aa
             
             in_dict["insertion"] = f"{beginning_flank}{beginning_pos}_{end_flank}{middle_pos}ins{in_slice}"
 
@@ -588,16 +575,16 @@ class MutationsModule(BaseModel):
             del_dict = {}
             for i, (position, codon) in enumerate(unpacked_indel):
                 if i == 1:
-                    affected_codon = split_ref[position - 1]
+                    affected_codon = split_ref[position]  # looking at a list index position here
                     original_aa = str(Seq(affected_codon).translate(table=11))
 
                     first_aa = original_aa  # deletions don't have flanks--the first aa reported is where the deletion starts (index 1, not 0)
-                    first_pos = position + 1
+                    first_pos = position + 1  # looking at biological position here
 
                     del_dict["first_aa"] = first_aa
                     del_dict["first_pos"] = first_pos 
                 elif i == len(unpacked_indel) - 2:
-                    affected_codon = split_ref[position - 1]
+                    affected_codon = split_ref[position]
                     original_aa = str(Seq(affected_codon).translate(table=11))
 
                     last_aa = original_aa
@@ -607,9 +594,9 @@ class MutationsModule(BaseModel):
                 else: 
                     new_aa = translated_stripped_seq[position - 1]
 
-                    inordel_codons += new_aa
+                    del_codons += new_aa
             
-            del_dict["deletion"] = f"{first_aa}{first_pos}_{last_aa}{last_pos}del{inordel_codons}"
+            del_dict["deletion"] = f"{first_aa}{first_pos}_{last_aa}{last_pos}del{del_codons}"
 
             return del_dict
 
@@ -620,7 +607,6 @@ class MutationsModule(BaseModel):
 
         has_snp = srv.get("has_snp", False) if srv is not None else False  # the PHM does not generate srv, so this avoids an AttributeError
         passes_eval = float(hsp_bitscore) >= float(pass_val)
-        # print("other mut for CM:",other_mutations)
         merged_mutations = {
             "query_def": "",
             "curated_mutations": None,
@@ -659,11 +645,6 @@ class MutationsModule(BaseModel):
                             mutations["mutations"]["type"]: mutations["mutations"]["de_novo"],
                         }
                         merged_mutations["de_novo_mutations"] = de_novo_entry
-
-                    # if mutations["mutations"]["curated"]:
-                    #     merged_mutations["curated_mutations"] = curated_entry
-                    # if mutations["mutations"]["de_novo"]:
-                    #     merged_mutations["de_novo_mutations"] = de_novo_entry
 
                 has_curated_mutation = merged_mutations.get("curated_mutations") is not None
                 has_denovo_mutation = merged_mutations.get("de_novo_mutations") is not None

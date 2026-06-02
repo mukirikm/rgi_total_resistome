@@ -166,8 +166,7 @@ class Variant(MutationsModule):
 						else:
 							fs_result = []
 							indel_result = []
-			# except FileNotFoundError as e:
-			except:
+			except FileNotFoundError as e:
 				traceback.print_exc()
 				logger.info("Skipping PVM extended mutation search...")
 		else:
@@ -273,8 +272,6 @@ class Variant(MutationsModule):
 										hsp_bitscore=hsp.bits, 
 										pass_val=true_pass_evalue)
 									
-									print(mm_output)
-
 									if not mm_output:
 										continue
 									
@@ -283,11 +280,6 @@ class Variant(MutationsModule):
 									de_novo_mutations = mm_record.get("de_novo_mutations", None)
 
 									if float(hsp.bits) >= float(true_pass_evalue):
-										# print("strict")
-										# print(curated_mutations)
-										# print(de_novo_mutations)
-										# print()
-
 										""" Strict hits """
 										sinsidedict = {}
 										sinsidedict["type_match"] = "Strict"
@@ -402,11 +394,6 @@ class Variant(MutationsModule):
 										init += 1
 
 									else:
-										# print("loose")
-										# print(curated_mutations)
-										# print(de_novo_mutations)
-										# print()
-
 										""" Loose hits """
 										slinsidedict = {}
 										slinsidedict["type_match"] = "Loose"
