@@ -339,7 +339,7 @@ class MutationsModule(BaseModel):
 
         """ deletions """            
         ### isolate the position of the deletion and the affected codons
-        if "-" in hsp_query:            
+        if "-" in hsp_query:
             ## split the query sequence into a list of codons
             stripped_qry = hsp_query.replace("-", "")
 
@@ -353,21 +353,22 @@ class MutationsModule(BaseModel):
                 qry_codons = split_qry[qry_codon_pos]
 
                 if "-" in qry_codons:
+                    del_gap_count = 0
                     qry_beginning_flank = split_qry[qry_codon_pos-1]
                     deletion[qry_codon_pos-1] = qry_beginning_flank
 
                     while qry_codon_pos < len(split_qry) and "-" in split_qry[qry_codon_pos]:
                         qry_current_codon = split_qry[qry_codon_pos] # snapshot of the current codon
                         deletion[qry_codon_pos] = qry_current_codon
+                        del_gap_count += qry_current_codon.count("-")                        
+
                         qry_codon_pos += 1 # updates our index to the NEXT codon after successfully identifying a gap
 
                     if qry_codon_pos < len(split_qry):
                         qry_ending_flank = split_qry[qry_codon_pos]
                         deletion[qry_codon_pos] = qry_ending_flank
-
-                        deletion_slice = split_sbjct[next(iter(deletion)) + 1:next(reversed(deletion))]
                         
-                        if len(''.join(deletion_slice)) % 3 == 0:  # checking that our deletion is clean codons and doesn't shift the frame
+                        if del_gap_count % 3 == 0:  # checking that our deletion is clean codons and doesn't shift the frame
                             del_result = self.indel_translator(deletion, split_ref, translated_stripped_qry, indel_type = "deletion")
                         else:
                             return None
@@ -431,12 +432,15 @@ class MutationsModule(BaseModel):
                 sbjct_codons = split_sbjct[sbjct_codon_pos]
 
                 if "-" in sbjct_codons:
+                    insert_gap_count = 0
                     sbjct_beginning_flank = split_sbjct[sbjct_codon_pos-1]
                     insertion[sbjct_codon_pos-1] = sbjct_beginning_flank
 
                     while sbjct_codon_pos < len(split_sbjct) and "-" in split_sbjct[sbjct_codon_pos]:
                         sbjct_current_codon = split_sbjct[sbjct_codon_pos] # snapshot of the current codon
                         insertion[sbjct_codon_pos] = sbjct_current_codon
+                        insert_gap_count += sbjct_current_codon.count("-")                        
+
                         sbjct_codon_pos += 1 # updates our index to the NEXT codon after successfully identifying a gap
 
                     if sbjct_codon_pos < len(split_sbjct):
@@ -445,7 +449,7 @@ class MutationsModule(BaseModel):
 
                         insertion_slice = split_qry[next(iter(insertion)) + 1:next(reversed(insertion))]
 
-                        if len(''.join(insertion_slice)) % 3 == 0:  # checking that our insertion is clean codons and doesn't shift the frame
+                        if insert_gap_count % 3 == 0:  # checking that our insertion is clean codons and doesn't shift the frame
                             in_result = self.indel_translator(insertion, split_ref, translated_stripped_sbjct, insertion_slice=insertion_slice, indel_type = "insertion")
                         else:
                             return None
