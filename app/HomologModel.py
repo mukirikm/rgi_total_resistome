@@ -188,7 +188,7 @@ class Homolog(MutationsModule):
                                 )
                                                         
                             mm_record = mm_output[0] if mm_output else None
-                            denovo_mutations = mm_record.get("denovo_mutations", []) if mm_record else []
+                            de_novo_mutations = mm_record.get("de_novo_mutations") if mm_record else None
 
                             try:
                                 if card_sequence.upper() == orf_protein_sequence.upper():
@@ -357,12 +357,12 @@ class Homolog(MutationsModule):
                                     elif self.input_type == 'read':
                                         pass
 
-                                    if denovo_mutations is not None:
-                                        insidedict["denovo_mutations"] = '; '.join(m["result"] for m in denovo_mutations)
-                                        insidedict["denovo_mutation_types"] = '; '.join(m["mutation_type"] for m in denovo_mutations)
+                                    if de_novo_mutations:
+                                        insidedict["de_novo_mutations"] = '; '.join(indiv_mut for mut in de_novo_mutations.values() for indiv_mut in mut)
+                                        insidedict["de_novo_mutation_types"] = '; '.join(mt for mt in de_novo_mutations.keys())
                                     else:
-                                        insidedict["denovo_mutations"] = "n/a"
-                                        insidedict["denovo_mutation_types"] = "n/a"
+                                        insidedict["de_novo_mutations"] = "n/a"
+                                        insidedict["de_novo_mutation_types"] = "n/a"
 
                                     insidedict["perc_identity"] = float(format(
                                         float(insidedict["max_identities"]*100) / len(insidedict["query"]), '.2f'))
@@ -451,12 +451,12 @@ class Homolog(MutationsModule):
                                     elif self.input_type == 'read':
                                         pass
 
-                                    if denovo_mutations is not None:
-                                        linsidedict["denovo_mutations"] = '; '.join(m["result"] for m in denovo_mutations)
-                                        linsidedict["denovo_mutation_types"] = '; '.join(m["mutation_type"] for m in denovo_mutations)
+                                    if de_novo_mutations:
+                                        linsidedict["de_novo_mutations"] = '; '.join(indiv_mut for mut in de_novo_mutations.values() for indiv_mut in mut)
+                                        linsidedict["de_novo_mutation_types"] = '; '.join(mt for mt in de_novo_mutations.keys())
                                     else:
-                                        linsidedict["denovo_mutations"] = "n/a"
-                                        linsidedict["denovo_mutation_types"] = "n/a"
+                                        linsidedict["de_novo_mutations"] = "n/a"
+                                        linsidedict["de_novo_mutation_types"] = "n/a"
 
                                     linsidedict["perc_identity"] = float(format(
                                         float(linsidedict["max_identities"]*100) / len(linsidedict["query"]), '.2f'))
