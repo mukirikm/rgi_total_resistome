@@ -381,6 +381,9 @@ class Overexpression(MutationsModule):
 										pass_val=pass_bitscore
 										)
 									
+									if not mm_output:
+										continue
+									
 									mm_record = mm_output[0] if mm_output else None
 									has_snp = mm_record.get("has_snp", False) if mm_record else False
 									curated_mutations = mm_record.get("curated_mutations", []) if mm_record else []
