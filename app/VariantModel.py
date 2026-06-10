@@ -164,8 +164,7 @@ class Variant(MutationsModule):
 								else:
 									pass
 						else:
-							fs_result = []
-							indel_result = []
+							pass
 			except FileNotFoundError as e:
 				traceback.print_exc()
 				logger.info("Skipping PVM extended mutation search...")

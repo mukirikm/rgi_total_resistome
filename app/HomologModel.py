@@ -89,8 +89,7 @@ class Homolog(MutationsModule):
                                 else:
                                     pass
                         else:
-                            fs_result = []
-                            indel_result = []
+                            pass
             except FileNotFoundError as e:
                 traceback.print_exc()
                 logger.info("Skipping PHM extended mutation search...")

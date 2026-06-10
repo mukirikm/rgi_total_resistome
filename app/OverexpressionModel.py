@@ -169,8 +169,7 @@ class Overexpression(MutationsModule):
 								else:
 									pass
 						else:
-							fs_result = []
-							indel_result = []
+							pass
 			except FileNotFoundError as e:
 				traceback.print_exc()
 				logger.info("Skipping POM extended mutation search...")
@@ -285,12 +284,9 @@ class Overexpression(MutationsModule):
 									ppinsidedict["type_match"] = "Perfect"
 									ppinsidedict["ast_source"] = ""
 									ppinsidedict["model_id"] = modelID
-									ppinsidedict["orf_strand"] = self.extract_nth_bar(
-										orfInfo, 0)
-									ppinsidedict["orf_start"] = self.extract_nth_bar(
-										orfInfo, 1)
-									ppinsidedict["orf_end"] = self.extract_nth_bar(
-										orfInfo, 2)
+									ppinsidedict["orf_strand"] = self.extract_nth_bar(orfInfo.decode(), 0)
+									ppinsidedict["orf_start"] = self.extract_nth_bar(orfInfo.decode(), 1)
+									ppinsidedict["orf_end"] = self.extract_nth_bar(orfInfo.decode(), 2)									
 									ppinsidedict["orf_from"] = self.trim_after_last_underscore(
 										orffrom.decode())
 									ppinsidedict["model_name"] = json_data[modelID]["model_name"]
