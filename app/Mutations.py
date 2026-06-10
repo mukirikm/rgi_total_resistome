@@ -212,7 +212,7 @@ class MutationsModule(BaseModel):
                 if "-" in qry_codons and len(''.join(split_qry)) % 3 == 0:    
                     qry_codon_pos += 1  # in a biological context, codons do not start "indexing" at 0; they start at 1
 
-                    if qry_codon_pos <= len(translated_stripped_qry):
+                    if (qry_codon_pos <= len(translated_stripped_qry) and qry_codon_pos <= len(split_ref)):
                         aa_pos, affected_codon, corr_aa, translated_codon = self.single_fs(qry_codon_pos, translated_stripped_qry, split_ref)
                         fs_ter = self.termination(translated_stripped_qry, aa_pos)
 
@@ -262,7 +262,7 @@ class MutationsModule(BaseModel):
                 if "-" in sbjct_codons and len(''.join(split_sbjct)) % 3 == 0:
                     sbjct_codon_pos += 1
                     
-                    if sbjct_codon_pos <= len(translated_stripped_sbjct):
+                    if (sbjct_codon_pos <= len(translated_stripped_sbjct) and sbjct_codon_pos <= len(split_ref)):
                         aa_pos, affected_codon, corr_aa, translated_codon = self.single_fs(sbjct_codon_pos, translated_stripped_sbjct, split_ref)
                         fs_ter = self.termination(translated_stripped_sbjct, aa_pos)
 
@@ -601,7 +601,7 @@ class MutationsModule(BaseModel):
 
                     del_dict["first_aa"] = first_aa
                     del_dict["first_pos"] = first_pos 
-                elif i == len(unpacked_indel) - 2:
+                if i == len(unpacked_indel) - 2:
                     affected_codon = split_ref[position]
                     original_aa = str(Seq(affected_codon).translate(table=11))
 
@@ -609,10 +609,8 @@ class MutationsModule(BaseModel):
                     last_pos = position + 1
                     del_dict["last_aa"] = last_aa
                     del_dict["last_pos"] = last_pos
-                else: 
-                    new_aa = translated_stripped_seq[position - 1]
-
-                    del_codons += new_aa
+                if i != 1 and i != len(unpacked_indel) - 2: 
+                    del_codons += translated_stripped_seq[position - 1]
             
             del_dict["deletion"] = f"{first_aa}{first_pos}_{last_aa}{last_pos}del{del_codons}"
 
@@ -684,6 +682,12 @@ class MutationsModule(BaseModel):
                                 if passes_eval and has_curated_mutation:  # Strict alignments
                                     merged_mutations["query_def"] += hit_id
                                     return [merged_mutations]
+                                # elif passes_eval and has_denovo_mutation:  # Strict alignments w de novo mutations
+                                #     merged_mutations["query_def"] += hit_id
+                                #     return [merged_mutations]
+                                # elif not passes_eval and has_denovo_mutation:  # Loose alignments w de novo mutations
+                                #     merged_mutations["query_def"] += hit_id
+                                #     return [merged_mutations]
                                 elif not passes_eval and has_curated_mutation:  # Loose alignments
                                     merged_mutations["query_def"] += hit_id
                                     return [merged_mutations]
@@ -699,6 +703,12 @@ class MutationsModule(BaseModel):
                                 if passes_eval and has_curated_mutation:  # Strict alignments
                                     merged_mutations["query_def"] += hit_id
                                     return [merged_mutations]
+                                # elif passes_eval and has_denovo_mutation:  # Strict alignments w de novo mutations
+                                #     merged_mutations["query_def"] += hit_id
+                                #     return [merged_mutations]
+                                # elif not passes_eval and has_denovo_mutation:  # Loose alignments w de novo mutations
+                                #     merged_mutations["query_def"] += hit_id
+                                #     return [merged_mutations]
                                 elif not passes_eval and has_curated_mutation:  # Loose alignments
                                     merged_mutations["query_def"] += hit_id
                                     return [merged_mutations]
