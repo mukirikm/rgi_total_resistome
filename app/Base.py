@@ -609,11 +609,12 @@ class BaseModel(object):
 
         return "; ".join(ast_source)
     
-    def parse_frameshifts(self, each_fs):
-        digits = ''.join(filter(str.isdigit, each_fs))
+    def parse_fsns(self, each_mutation):
+        # these mutations are separated on their positions (e.g., A15fs, Q10Ter)
+        digits = ''.join(filter(str.isdigit, each_mutation))
             
         if digits:
-            original = each_fs.split(digits)
+            original = each_mutation.split(digits)
 
             if len(original) < 1 or not original[0]:
                 return None
@@ -647,5 +648,4 @@ class BaseModel(object):
                 return aa1, pos1, event, aa2, pos2, inordel
             else:
                 return None
-
 

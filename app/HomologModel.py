@@ -51,6 +51,7 @@ class Homolog(MutationsModule):
 
         fs_result = []
         indel_result = []
+        ns_result = []
 
         if self.dna_xml_file:
             try:
@@ -81,11 +82,14 @@ class Homolog(MutationsModule):
                                         
                                         fs_out = self.frameshift(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def)
                                         indel_out = self.indel(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def)
+                                        ns_out = self.nonsense(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def)
 
                                         if fs_out is not None:
                                             fs_result.append(fs_out)
                                         if indel_out is not None:
                                             indel_result.append(indel_out)
+                                        if ns_out is not None:
+                                            ns_result.append(ns_out)
                                 else:
                                     pass
                         else:
@@ -106,7 +110,7 @@ class Homolog(MutationsModule):
 
 				## filter MM results to only entries matching this blast_record's query
                 bpquery_def = blast_record.query
-                mutation_result = (fs_result or []) + (indel_result or [])
+                mutation_result = (fs_result or []) + (indel_result or []) + (ns_result or [])
 
                 mutation_result_filtered = [
 					m for m in mutation_result

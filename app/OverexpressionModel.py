@@ -54,6 +54,7 @@ class Overexpression(MutationsModule):
 
 		fs_result = []
 		indel_result = []
+		ns_result = []
 
 		if self.dna_xml_file:
 			try:
@@ -85,10 +86,11 @@ class Overexpression(MutationsModule):
 									fs_dict_list = []
 									pep_insert_dict_list = []
 									pep_del_dict_list = []
+									ns_dict_list = []
 
 									if json_data[model_id]["model_param"].get("40494"):  # frameshifts
 										for each_fs in list(json_data[model_id]["model_param"]["40494"]["param_value"].values()):
-											original_aa, pos = self.parse_frameshifts(each_fs)
+											original_aa, pos = self.parse_fsns(each_fs)
 											fs_dict_list.append({
 												"original_aa": original_aa,
 												"aa_position": pos
@@ -142,7 +144,15 @@ class Overexpression(MutationsModule):
 													"pos2": result[4],
 													"deleted" : result[5],
 													"full_indel": eachpepdel
-													})									
+													})
+
+									if json_data[model_id]["model_param"].get("40394"):  # nonsense
+										for eachns in list(json_data[model_id]["model_param"]["40394"]["param_value"].values()):
+											original_aa, pos = self.parse_fsns(eachns)
+											ns_dict_list.append({
+												"original_aa": original_aa,
+												"aa_position": pos
+											})
 																		
 									for hsp in alignment.hsps:
 										query_seq =  hsp.query.replace('-', '')
@@ -160,12 +170,18 @@ class Overexpression(MutationsModule):
 											indel_out = self.indel(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, curated_in_list=pep_insert_dict_list, curated_del_list=pep_del_dict_list)
 										else:
 											indel_out = None
+										if ns_dict_list:
+											ns_out = self.nonsense(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, param_type=json_data[model_id]["model_param"]["40394"]["param_type"], ns_dict_list=ns_dict_list)
+										else:
+											ns_out = None
 
 										# fetch mutations from MM
 										if fs_out is not None:
 											fs_result.append(fs_out)
 										if indel_out is not None:
 											indel_result.append(indel_out)
+										if ns_out is not None:
+											ns_result.append(ns_out)
 								else:
 									pass
 						else:
@@ -185,7 +201,7 @@ class Overexpression(MutationsModule):
 
 				## filter MM results to only entries matching this blast_record's query
 				bpquery_def = blast_record.query
-				mutation_result = (fs_result or []) + (indel_result or [])
+				mutation_result = (fs_result or []) + (indel_result or []) + (ns_result or [])
 
 				mutation_result_filtered = [
 					m for m in mutation_result
