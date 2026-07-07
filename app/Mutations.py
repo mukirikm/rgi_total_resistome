@@ -692,11 +692,18 @@ class MutationsModule(BaseModel):
             other_mutations = []
 
         # protein input
+        # CASE 1: if the input is a protein there won't be a BLASTN xml generated
         if input_type == "protein":
-            if srv is None and phm:
+            if srv is None:
                 return []
-            elif srv is not None and has_snp:  # CASE 1: if the input is a protein there won't be a BLASTN xml generated
+            
+            if model_type == "POM":
                 return [srv]
+            
+            if has_snp:
+                return [srv]
+            
+            return []
 
         # nucleotide input
         elif input_type == "contig":
