@@ -322,14 +322,14 @@ class Variant(MutationsModule):
 											sinsidedict["orf_from"] = "n/a"
 											
 										if curated_mutations is not None:
-											sinsidedict["curated_mutations"] = '; '.join(indiv_mut for mut in curated_mutations.values() for indiv_mut in mut)
-											sinsidedict["curated_mutation_types"] = '; '.join(mt for mt in curated_mutations.keys())
+											sinsidedict["curated_mutations"] = '; '.join(', '.join(mutations) for mutations in curated_mutations.values())
+											sinsidedict["curated_mutation_types"] = '; '.join(curated_mutations.keys())
 										else:
 											sinsidedict["curated_mutations"] = "n/a"
 											sinsidedict["curated_mutation_types"] = "n/a"
 										if de_novo_mutations is not None:
-											sinsidedict["de_novo_mutations"] = '; '.join(indiv_mut for mut in de_novo_mutations.values() for indiv_mut in mut)
-											sinsidedict["de_novo_mutation_types"] = '; '.join(mt for mt in de_novo_mutations.keys())
+											sinsidedict["de_novo_mutations"] = '; '.join(', '.join(mutations) for mutations in de_novo_mutations.values())
+											sinsidedict["de_novo_mutation_types"] = '; '.join(de_novo_mutations.keys())
 										else:
 											sinsidedict["de_novo_mutations"] = "n/a"
 											sinsidedict["de_novo_mutation_types"] = "n/a"
@@ -350,7 +350,7 @@ class Variant(MutationsModule):
 										sinsidedict["query"] = hsp.query
 										sinsidedict["match"] = hsp.match
 										sinsidedict["sequence_from_db"] = hsp.sbjct
-										sinsidedict["sequence_from_broadstreet"]	= json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["protein_sequence"]["sequence"]
+										sinsidedict["sequence_from_broadstreet"] = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["protein_sequence"]["sequence"]
 										sinsidedict["dna_sequence_from_broadstreet"] = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["dna_sequence"]["sequence"]
 										if "partial" in json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["dna_sequence"].keys():
 											sinsidedict["partial"] = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["dna_sequence"]["partial"]
@@ -436,14 +436,14 @@ class Variant(MutationsModule):
 											slinsidedict["orf_from"] = "n/a"
 											
 										if curated_mutations is not None:
-											slinsidedict["curated_mutations"] = '; '.join(indiv_mut for mut in curated_mutations.values() for indiv_mut in mut)
-											slinsidedict["curated_mutation_types"] = '; '.join(mt for mt in curated_mutations.keys())
+											slinsidedict["curated_mutations"] = '; '.join(', '.join(mutations) for mutations in curated_mutations.values())
+											slinsidedict["curated_mutation_types"] = '; '.join(curated_mutations.keys())
 										else:
 											slinsidedict["curated_mutations"] = "n/a"
 											slinsidedict["curated_mutation_types"] = "n/a"
 										if de_novo_mutations is not None:
-											slinsidedict["de_novo_mutations"] = '; '.join(indiv_mut for mut in de_novo_mutations.values() for indiv_mut in mut)
-											slinsidedict["de_novo_mutation_types"] = '; '.join(mt for mt in de_novo_mutations.keys())
+											slinsidedict["de_novo_mutations"] = '; '.join(', '.join(mutations) for mutations in de_novo_mutations.values())
+											slinsidedict["de_novo_mutation_types"] = '; '.join(de_novo_mutations.keys())
 										else:
 											slinsidedict["de_novo_mutations"] = "n/a"
 											slinsidedict["de_novo_mutation_types"] = "n/a"

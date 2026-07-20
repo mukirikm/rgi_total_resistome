@@ -536,8 +536,9 @@ class MutationsModule(BaseModel):
 
             if qry_codon in stop_codons:
                 stop_pos += 1
-                if stop_pos != len(translated_stripped_qry):
+                if stop_pos != len(split_ref):
                     affected_aa = str(Seq(split_ref[stop_pos - 1]).translate(table=11))
+                    # print(f"qry codon:{qry_codon}\nposition of stop:{stop_pos}\naffected amino acid:{affected_aa}\n")
 
                     if ns_dict_list:
                         for eachns in ns_dict_list:
@@ -547,13 +548,13 @@ class MutationsModule(BaseModel):
                         if ns_curated_result_HGVS:
                             for _ in ns_curated_result_HGVS:
                                 if f"{affected_aa}{stop_pos}Ter" not in ns_curated_result_HGVS:
-                                    ns_denovo_result_HGVS.append(f"{affected_aa}{stop_pos}Ter") ## e.g., A15AfsTer9
+                                    ns_denovo_result_HGVS.append(f"{affected_aa}{stop_pos}Ter")
                         else:
                             if f"{affected_aa}{stop_pos}Ter" not in ns_curated_result_HGVS:
-                                ns_denovo_result_HGVS.append(f"{affected_aa}{stop_pos}Ter") ## e.g., A15AfsTer9
+                                ns_denovo_result_HGVS.append(f"{affected_aa}{stop_pos}Ter")
                     else:
                         if f"{affected_aa}{stop_pos}Ter" not in ns_denovo_result_HGVS:
-                            ns_denovo_result_HGVS.append(f"{affected_aa}{stop_pos}Ter") ## e.g., A15AfsTer9
+                            ns_denovo_result_HGVS.append(f"{affected_aa}{stop_pos}Ter")
                 else:
                     pass
             else:
@@ -572,7 +573,6 @@ class MutationsModule(BaseModel):
             else:
                 ns_result_prelim["mutations"] = {"type": "nonsense mutation"}
 
-            # you can change the output syntax here
             if ns_curated_result_HGVS:
                 ns_result_prelim["mutations"]["curated"] = ns_curated_result_HGVS
             if ns_denovo_result_HGVS:
@@ -684,8 +684,8 @@ class MutationsModule(BaseModel):
         passes_eval = float(hsp_bitscore) >= float(pass_val)
         merged_mutations = {
             "query_def": "",
-            "curated_mutations": None,
-            "de_novo_mutations": None
+            "curated_mutations": {},
+            "de_novo_mutations": {}
         }
 
         if other_mutations is None:
@@ -716,20 +716,34 @@ class MutationsModule(BaseModel):
                 for mutations in other_mutations:
                     merged_mutations["query_def"] = mutations["query_def"]
                     mutation_id = mutations["query_def"].split()[0]
+                    mutation_type = mutations["mutations"]["type"]
 
                     # building out our nested dictionary of mutations lists (in subdictionaries...)
                     # we want rich merged output
                     if mutations["mutations"].get("curated"):
-                        curated_entry = {
-                            mutations["mutations"]["type"]: mutations["mutations"]["curated"],
-                        }
-                        merged_mutations["curated_mutations"] = curated_entry
+                        merged_mutations["curated_mutations"].setdefault(mutation_type, [])
+                        merged_mutations["curated_mutations"][mutation_type].extend(
+                            mutations["mutations"]["curated"]
+                        )
 
                     if mutations["mutations"].get("de_novo"):
-                        de_novo_entry = {
-                            mutations["mutations"]["type"]: mutations["mutations"]["de_novo"],
-                        }
-                        merged_mutations["de_novo_mutations"] = de_novo_entry
+                        merged_mutations["de_novo_mutations"].setdefault(mutation_type, [])
+                        merged_mutations["de_novo_mutations"][mutation_type].extend(
+                            mutations["mutations"]["de_novo"]
+                        )
+
+                for bucket in ["curated_mutations", "de_novo_mutations"]:
+                    if merged_mutations[bucket]:
+                        for mutation_type, values in merged_mutations[bucket].items():
+                            merged_mutations[bucket][mutation_type] = list(dict.fromkeys(values))
+                    else:
+                        merged_mutations[bucket] = None
+
+                if not merged_mutations["curated_mutations"]:
+                    merged_mutations["curated_mutations"] = None
+
+                if not merged_mutations["de_novo_mutations"]:
+                    merged_mutations["de_novo_mutations"] = None
 
                 has_curated_mutation = merged_mutations.get("curated_mutations") is not None
                 has_denovo_mutation = merged_mutations.get("de_novo_mutations") is not None
@@ -748,12 +762,12 @@ class MutationsModule(BaseModel):
                                 if passes_eval and has_curated_mutation:  # Strict alignments
                                     merged_mutations["query_def"] += hit_id
                                     return [merged_mutations]
-                                # elif passes_eval and has_denovo_mutation:  # Strict alignments w de novo mutations
-                                #     merged_mutations["query_def"] += hit_id
-                                #     return [merged_mutations]
-                                # elif not passes_eval and has_denovo_mutation:  # Loose alignments w de novo mutations
-                                #     merged_mutations["query_def"] += hit_id
-                                #     return [merged_mutations]
+                                elif passes_eval and has_denovo_mutation:  # Strict alignments w de novo mutations
+                                    merged_mutations["query_def"] += hit_id
+                                    return [merged_mutations]
+                                elif not passes_eval and has_denovo_mutation:  # Loose alignments w de novo mutations
+                                    merged_mutations["query_def"] += hit_id
+                                    return [merged_mutations]
                                 elif not passes_eval and has_curated_mutation:  # Loose alignments
                                     merged_mutations["query_def"] += hit_id
                                     return [merged_mutations]
@@ -769,12 +783,12 @@ class MutationsModule(BaseModel):
                                 if passes_eval and has_curated_mutation:  # Strict alignments
                                     merged_mutations["query_def"] += hit_id
                                     return [merged_mutations]
-                                # elif passes_eval and has_denovo_mutation:  # Strict alignments w de novo mutations
-                                #     merged_mutations["query_def"] += hit_id
-                                #     return [merged_mutations]
-                                # elif not passes_eval and has_denovo_mutation:  # Loose alignments w de novo mutations
-                                #     merged_mutations["query_def"] += hit_id
-                                #     return [merged_mutations]
+                                elif passes_eval and has_denovo_mutation:  # Strict alignments w de novo mutations
+                                    merged_mutations["query_def"] += hit_id
+                                    return [merged_mutations]
+                                elif not passes_eval and has_denovo_mutation:  # Loose alignments w de novo mutations
+                                    merged_mutations["query_def"] += hit_id
+                                    return [merged_mutations]
                                 elif not passes_eval and has_curated_mutation:  # Loose alignments
                                     merged_mutations["query_def"] += hit_id
                                     return [merged_mutations]

@@ -361,8 +361,8 @@ class Homolog(MutationsModule):
                                         pass
 
                                     if de_novo_mutations:
-                                        insidedict["de_novo_mutations"] = '; '.join(indiv_mut for mut in de_novo_mutations.values() for indiv_mut in mut)
-                                        insidedict["de_novo_mutation_types"] = '; '.join(mt for mt in de_novo_mutations.keys())
+                                        insidedict["de_novo_mutations"] = '; '.join(', '.join(mutations) for mutations in de_novo_mutations.values())
+                                        insidedict["de_novo_mutation_types"] = '; '.join(de_novo_mutations.keys())
                                     else:
                                         insidedict["de_novo_mutations"] = "n/a"
                                         insidedict["de_novo_mutation_types"] = "n/a"
@@ -455,8 +455,8 @@ class Homolog(MutationsModule):
                                         pass
 
                                     if de_novo_mutations:
-                                        linsidedict["de_novo_mutations"] = '; '.join(indiv_mut for mut in de_novo_mutations.values() for indiv_mut in mut)
-                                        linsidedict["de_novo_mutation_types"] = '; '.join(mt for mt in de_novo_mutations.keys())
+                                        linsidedict["de_novo_mutations"] = '; '.join(', '.join(mutations) for mutations in de_novo_mutations.values())
+                                        linsidedict["de_novo_mutation_types"] = '; '.join(de_novo_mutations.keys())
                                     else:
                                         linsidedict["de_novo_mutations"] = "n/a"
                                         linsidedict["de_novo_mutation_types"] = "n/a"

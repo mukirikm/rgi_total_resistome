@@ -445,10 +445,10 @@ class Overexpression(MutationsModule):
 												"model_sequences"]["sequence"][seqinModel]["dna_sequence"]["sequence"]
 											
 											if has_other_mutations:
-												sinsidedict["curated_mutations"] = '; '.join(indiv_mut for mut in curated_mutations.values() for indiv_mut in mut) if curated_mutations else "n/a"
-												sinsidedict["curated_mutation_types"] = '; '.join(mt for mt in curated_mutations.keys()) if curated_mutations else "n/a"
-												sinsidedict["de_novo_mutations"] = '; '.join(indiv_mut for mut in de_novo_mutations.values() for indiv_mut in mut) if de_novo_mutations else "n/a"
-												sinsidedict["de_novo_mutation_types"] = '; '.join(mt for mt in de_novo_mutations.keys()) if de_novo_mutations else "n/a"
+												sinsidedict["curated_mutations"] = '; '.join(', '.join(mutations) for mutations in curated_mutations.values()) if curated_mutations else "n/a"
+												sinsidedict["curated_mutation_types"] = '; '.join(curated_mutations.keys()) if curated_mutations else "n/a"
+												sinsidedict["de_novo_mutations"] = '; '.join(', '.join(mutations) for mutations in de_novo_mutations.values()) if de_novo_mutations else "n/a"
+												sinsidedict["de_novo_mutation_types"] = '; '.join(de_novo_mutations.keys()) if de_novo_mutations else "n/a"
 											else:
 												sinsidedict["curated_mutations"] = "n/a"
 												sinsidedict["curated_mutation_types"] = "n/a"
@@ -544,10 +544,10 @@ class Overexpression(MutationsModule):
 												"model_sequences"]["sequence"][seqinModel]["dna_sequence"]["sequence"]
 											
 											if has_other_mutations:
-												insidedict["curated_mutations"] = '; '.join(indiv_mut for mut in curated_mutations.values() for indiv_mut in mut) if curated_mutations else "n/a"
-												insidedict["curated_mutation_types"] = '; '.join(mt for mt in curated_mutations.keys()) if curated_mutations else "n/a"
-												insidedict["de_novo_mutations"] = '; '.join(indiv_mut for mut in de_novo_mutations.values() for indiv_mut in mut) if de_novo_mutations else "n/a"
-												insidedict["de_novo_mutation_types"] = '; '.join(mt for mt in de_novo_mutations.keys()) if de_novo_mutations else "n/a"
+												insidedict["curated_mutations"] = '; '.join(', '.join(mutations) for mutations in curated_mutations.values()) if curated_mutations else "n/a"
+												insidedict["curated_mutation_types"] = '; '.join(curated_mutations.keys()) if curated_mutations else "n/a"
+												insidedict["de_novo_mutations"] = '; '.join(', '.join(mutations) for mutations in de_novo_mutations.values()) if de_novo_mutations else "n/a"
+												insidedict["de_novo_mutation_types"] = '; '.join(de_novo_mutations.keys()) if de_novo_mutations else "n/a"
 											else:
 												insidedict["curated_mutations"] = "n/a"
 												insidedict["curated_mutation_types"] = "n/a"
@@ -653,10 +653,10 @@ class Overexpression(MutationsModule):
 											"model_sequences"]["sequence"][seqinModel]["dna_sequence"]["sequence"]
 										
 										if has_other_mutations:
-											linsidedict["curated_mutations"] = '; '.join(indiv_mut for mut in curated_mutations.values() for indiv_mut in mut) if curated_mutations else "n/a"
-											linsidedict["curated_mutation_types"] = '; '.join(mt for mt in curated_mutations.keys()) if curated_mutations else "n/a"
-											linsidedict["de_novo_mutations"] = '; '.join(indiv_mut for mut in de_novo_mutations.values() for indiv_mut in mut) if de_novo_mutations else "n/a"
-											linsidedict["de_novo_mutation_types"] = '; '.join(mt for mt in de_novo_mutations.keys()) if de_novo_mutations else "n/a"
+											linsidedict["curated_mutations"] = '; '.join(', '.join(mutations) for mutations in curated_mutations.values()) if curated_mutations else "n/a"
+											linsidedict["curated_mutation_types"] = '; '.join(curated_mutations.keys()) if curated_mutations else "n/a"
+											linsidedict["de_novo_mutations"] = '; '.join(', '.join(mutations) for mutations in de_novo_mutations.values()) if de_novo_mutations else "n/a"
+											linsidedict["de_novo_mutation_types"] = '; '.join(de_novo_mutations.keys()) if de_novo_mutations else "n/a"
 										else:
 											linsidedict["curated_mutations"] = "n/a"
 											linsidedict["curated_mutation_types"] = "n/a"
