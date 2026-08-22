@@ -308,10 +308,10 @@ class MutationsModule(BaseModel):
                 fs_result_prelim["mutations"] = {"type": "frameshift mutation"}
 
             # you can change the output syntax here
-            if fs_curated_result_HGVS:
-                fs_result_prelim["mutations"]["curated"] = fs_curated_result_HGVS
+            if fs_curated_list_validation:
+                fs_result_prelim["mutations"]["curated"] = fs_curated_list_validation
             if fs_denovo_result_HGVS:
-                fs_result_prelim["mutations"]["de_novo"] = fs_denovo_result_HGVS
+                fs_result_prelim["mutations"]["de_novo"] = fs_denovo_list_validation
         elif not fs_curated_result_HGVS and not fs_denovo_result_HGVS:
             return None
         
@@ -320,7 +320,6 @@ class MutationsModule(BaseModel):
     def indel(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, insert_type="", del_type="", curated_in_list=None, curated_del_list=None):
         """
         Searches for insertions and deletions in sequences.
-        WIP: separate indels by param_type? for now, indels are indels in the RGI output
         WIP: indels that cancel each other out (e.g., 1 ins/1 del)
         """
         
@@ -517,48 +516,42 @@ class MutationsModule(BaseModel):
         if ns_dict_list is None:
             ns_dict_list = []
 
-        stop_pos = 0
-                        
-        stripped_qry = hsp_query.replace("-", "")
-
         split_ref = re.findall('.'*3, card_dna_ref)
         split_qry = re.findall('.'*3, hsp_query)  # to grab our actual inserted stretch of sequence
 
         stop_codons = ["UAA", "UAG", "UGA", "TAA", "TAG", "TGA"]
 
-        ## translate the query sequence into a protein (seq stripped of gaps because Seq hates them)
-        translated_stripped_qry = str(Seq(stripped_qry).translate(table=11))
-
         ## test print statements
         # print(f"curated nonsense mutations:{ns_dict_list}\nsplit ref: {split_ref}\nsplit query: {split_qry}\n")
 
-        for i , qry_codon in enumerate(split_qry):
+        for stop_pos, qry_codon in enumerate(split_qry, start=1):
+            if qry_codon not in stop_codons:
+                continue
 
-            if qry_codon in stop_codons:
-                stop_pos += 1
-                if stop_pos != len(split_ref):
-                    affected_aa = str(Seq(split_ref[stop_pos - 1]).translate(table=11))
-                    # print(f"qry codon:{qry_codon}\nposition of stop:{stop_pos}\naffected amino acid:{affected_aa}\n")
+            ref_index = stop_pos - 1
 
-                    if ns_dict_list:
-                        for eachns in ns_dict_list:
-                            if eachns["original_aa"] == affected_aa and eachns["aa_position"] == stop_pos:
-                                ns_curated_result_HGVS.append(f"{affected_aa}{stop_pos}Ter") ## e.g., Q10Ter
-                            
-                        if ns_curated_result_HGVS:
-                            for _ in ns_curated_result_HGVS:
-                                if f"{affected_aa}{stop_pos}Ter" not in ns_curated_result_HGVS:
-                                    ns_denovo_result_HGVS.append(f"{affected_aa}{stop_pos}Ter")
-                        else:
-                            if f"{affected_aa}{stop_pos}Ter" not in ns_curated_result_HGVS:
-                                ns_denovo_result_HGVS.append(f"{affected_aa}{stop_pos}Ter")
-                    else:
-                        if f"{affected_aa}{stop_pos}Ter" not in ns_denovo_result_HGVS:
-                            ns_denovo_result_HGVS.append(f"{affected_aa}{stop_pos}Ter")
-                else:
-                    pass
-            else:
-                stop_pos += 1
+            # the aligned query and CARD reference can have different lengths
+            # skip stops that cannot be mapped instead of indexing past split_ref
+            if not 0 <= ref_index < len(split_ref):
+                continue
+
+            affected_aa = str(Seq(split_ref[ref_index]).translate(table=11))
+
+            # a stop already present in CARD is the expected termination codon, not a newly introduced nonsense mutation
+            if affected_aa == "*":
+                continue
+
+            nonsense_mutation = f"{affected_aa}{stop_pos}Ter"
+
+            if ns_dict_list:
+                for eachns in ns_dict_list:
+                    if eachns["original_aa"] == affected_aa and eachns["aa_position"] == stop_pos:
+                        ns_curated_result_HGVS.append(nonsense_mutation)
+
+                if nonsense_mutation not in ns_curated_result_HGVS:
+                    ns_denovo_result_HGVS.append(nonsense_mutation)
+            elif nonsense_mutation not in ns_denovo_result_HGVS:
+                ns_denovo_result_HGVS.append(nonsense_mutation)
 
         ns_curated_result_HGVS = list(dict.fromkeys(ns_curated_result_HGVS)) # bandaid solution to dedupe mutations...
         ns_denovo_result_HGVS = list(dict.fromkeys(ns_denovo_result_HGVS))
