@@ -163,7 +163,7 @@ class Overexpression(MutationsModule):
 										card_dna_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["dna_sequence"]["sequence"]
 
 										if fs_dict_list:
-											fs_out = self.frameshift(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, param_type=json_data[model_id]["model_param"]["40494"]["param_type"], fs_dict_list=fs_dict_list)
+											fs_out = self.frameshift(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, hsp_sbjct_start=hsp.sbjct_start, param_type=json_data[model_id]["model_param"]["40494"]["param_type"], fs_dict_list=fs_dict_list)
 										else:
 											fs_out = None
 										if pep_insert_dict_list or pep_del_dict_list:

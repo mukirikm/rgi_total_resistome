@@ -80,7 +80,7 @@ class Homolog(MutationsModule):
                                     for hsp in alignment.hsps:
                                         card_dna_ref = json_data[modelID]["model_sequences"]["sequence"][seqinModel]["dna_sequence"]["sequence"]
                                         
-                                        fs_out = self.frameshift(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def)
+                                        fs_out = self.frameshift(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, hsp_sbjct_start=hsp.sbjct_start)
                                         indel_out = self.indel(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def)
                                         ns_out = self.nonsense(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def)
 

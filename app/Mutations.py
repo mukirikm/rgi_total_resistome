@@ -170,9 +170,11 @@ class MutationsModule(BaseModel):
 
                         # logger.info("query_snp on frame {} {}".format(hsp.frame, json.dumps(query_snps, indent=2)))
 
-    def frameshift(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, param_type=None, fs_dict_list=None): 
+    def frameshift(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, hsp_sbjct_start=1, param_type=None, fs_dict_list=None): 
         """
-        Searches for frameshifts in sequences.
+        Searches for frameshifts in nucleotide sequences.
+
+        ** Code optimized with Codex **
         """
         
         fs_result_prelim = {}
@@ -189,112 +191,48 @@ class MutationsModule(BaseModel):
         if fs_dict_list is None:
             fs_dict_list = []
 
-        # for deletions
-        qry_codon_pos = 0
+        translated_qry = str(Seq(hsp_query.replace("-", "")).translate(table=11))  # Seq() hates dashed gaps, so we stripped them
+        hsp_start_codon = (hsp_sbjct_start - 1) // 3
 
-        # for insertions
-        sbjct_codon_pos = 0
-                        
-        split_ref = re.findall('.'*3, card_dna_ref)
-        
-        """for nucleotide deletions """            
-        ### isolate the position of the gap(s) and the affected codon(s)
-        if "-" in hsp_query:
-            ## split the query sequence into a list of codons
-            split_qry = re.findall('.'*3, hsp_query)
-            stripped_qry = hsp_query.replace("-", "")
+        # print(f"query_def: {query_def}")
 
-            ## translate the query sequence into a protein (seq stripped of gaps because Seq hates them)
-            translated_stripped_qry = str(Seq(stripped_qry).translate(table=11))
+        for raw_event in self.gap_events(hsp_query, hsp_sbjct, hsp_sbjct_start):
 
-            ## iterate through query codon list, find gaps, note position, and grab all relevant information
-            for qry_codons in split_qry:
-                if "-" in qry_codons and len(''.join(split_qry)) % 3 == 0:    
-                    qry_codon_pos += 1  # in a biological context, codons do not start "indexing" at 0; they start at 1
+            if not raw_event["is_frameshift"] or raw_event["reference_nucl_index"] is None:
+                continue
 
-                    if (qry_codon_pos <= len(translated_stripped_qry) and qry_codon_pos <= len(split_ref)):
-                        aa_pos, affected_codon, corr_aa, translated_codon = self.single_fs(qry_codon_pos, translated_stripped_qry, split_ref)
-                        fs_ter = self.termination(translated_stripped_qry, aa_pos)
+            # print(f"gap event\n{raw_event}\n")
+            event, is_curated = self.gap_resolver(raw_event, card_dna_ref, fs_dict_list)
 
-                        if fs_dict_list:  # if there are curated frameshifts in the alignment title (PVM, POM)
-                            for eachfs in fs_dict_list:
-                                if eachfs["original_aa"] == translated_codon and eachfs["aa_position"] == aa_pos:
-                                    # frameshift found is added to 3 lists in 3 different ways
-                                    fs_curated_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
-                                    fs_curated_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
-                                    fs_curated_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
-                            
-                            if fs_curated_list_reg:
-                                for _ in fs_curated_list_reg:
-                                    if f"{translated_codon}{aa_pos}{corr_aa}" not in fs_curated_list_reg and f"{translated_codon}{aa_pos}{corr_aa}" not in fs_denovo_list_reg:
-                                        fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
-                                        fs_denovo_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
-                                        fs_denovo_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
-                            else:
-                                if f"{translated_codon}{aa_pos}{corr_aa}" not in fs_curated_list_reg:
-                                    fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
-                                    fs_denovo_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
-                                    fs_denovo_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
-                        else:  # homologs or models that don't have curated frameshifts
-                            if f"{translated_codon}{aa_pos}{corr_aa}" not in fs_denovo_list_reg:
-                                fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
-                                fs_denovo_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
-                                fs_denovo_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
-                    else:
-                        pass
+            aa_pos = (event["reference_nucl_index"] // 3) + 1  # converting our zero-based nucleotide start position to one-based amino acid space
+            codon_start = (aa_pos - 1) * 3  # zero-based
+            qry_aa_index = (aa_pos - 1) - hsp_start_codon  # zero-based
 
-                ## for any other nucleotide in the sequence DO NOT COMMENT OUT
-                else:
-                    qry_codon_pos += 1
-            
-        """for nucleotide insertions"""
-        ### isolate the position of the gap(s) and the affected codon(s)
-        if "-" in hsp_sbjct:
-            ## split the subject sequence into a list of codons
-            split_sbjct = re.findall('.'*3, hsp_sbjct)
-            stripped_sbjct = hsp_sbjct.replace("-", "")
-            
-            ## translate the subject sequence into a protein (seq stripped of gaps because Seq hates them)
-            translated_stripped_sbjct = str(Seq(stripped_sbjct).translate(table=11, gap="-"))
+            if qry_aa_index < 0 or qry_aa_index >= len(translated_qry):
+                continue
 
-            ## iterate through subject codon list, find gaps, note position, and grab all relevant information
-            for sbjct_codons in split_sbjct:
-                if "-" in sbjct_codons and len(''.join(split_sbjct)) % 3 == 0:
-                    sbjct_codon_pos += 1
-                    
-                    if (sbjct_codon_pos <= len(translated_stripped_sbjct) and sbjct_codon_pos <= len(split_ref)):
-                        aa_pos, affected_codon, corr_aa, translated_codon = self.single_fs(sbjct_codon_pos, translated_stripped_sbjct, split_ref)
-                        fs_ter = self.termination(translated_stripped_sbjct, aa_pos)
+            translated_ref_codon = str(Seq(card_dna_ref[codon_start:codon_start + 3]).translate(table=11))
+            new_aa = translated_qry[qry_aa_index]
 
-                        if fs_dict_list:
-                            for eachfs in fs_dict_list:
-                                if eachfs["original_aa"] == translated_codon and eachfs["aa_position"] == aa_pos:
-                                    fs_curated_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
-                                    fs_curated_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
-                                    fs_curated_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
-                                
-                            if fs_curated_list_reg:
-                                for _ in fs_curated_list_reg:
-                                    if f"{translated_codon}{aa_pos}{corr_aa}" not in fs_curated_list_reg:
-                                        fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
-                                        fs_denovo_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
-                                        fs_denovo_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
-                            else:
-                                if f"{translated_codon}{aa_pos}{corr_aa}" not in fs_curated_list_reg:
-                                    fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
-                                    fs_denovo_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
-                                    fs_denovo_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
-                        else:
-                            if f"{translated_codon}{aa_pos}{corr_aa}" not in fs_denovo_list_reg:
-                                fs_denovo_list_reg.append(f"{translated_codon}{aa_pos}{corr_aa}") ## e.g., A15A
-                                fs_denovo_list_validation.append(f"{translated_codon}{aa_pos}fs") ## e.g., A15fs
-                                fs_denovo_result_HGVS.append(f"{translated_codon}{aa_pos}{corr_aa}fsTer{fs_ter}") ## e.g., A15AfsTer9
-                    else:
-                        pass
-                else:
-                    sbjct_codon_pos += 1  
-                    
-        fs_curated_result_HGVS = list(dict.fromkeys(fs_curated_result_HGVS)) # bandaid solution to dedupe mutations...
+            fs_termination = self.termination(translated_qry, qry_aa_index + 1)
+            fs_reg = f"{translated_ref_codon}{aa_pos}{new_aa}"
+            fs_validation = f"{translated_ref_codon}{aa_pos}fs"
+            fs_hgvs = f"{fs_reg}fsTer{fs_termination}"
+
+            # print(f"regular degular: {fs_reg}\nvalidation style: {fs_validation}\nHGVS syntax: {fs_hgvs}\n\n")
+
+            if is_curated:
+                fs_curated_list_reg.append(fs_reg)  # e.g., A151A
+                fs_curated_list_validation.append(fs_validation)  # e.g., A15fs
+                fs_curated_result_HGVS.append(fs_hgvs)  # e.g., A15AfsTer9
+            else:
+                fs_denovo_list_reg.append(fs_reg)
+                fs_denovo_list_validation.append(fs_validation)
+                fs_denovo_result_HGVS.append(fs_hgvs)
+
+        fs_curated_list_validation = list(dict.fromkeys(fs_curated_list_validation))  
+        fs_denovo_list_validation = list(dict.fromkeys(fs_denovo_list_validation))
+        fs_curated_result_HGVS = list(dict.fromkeys(fs_curated_result_HGVS))
         fs_denovo_result_HGVS = list(dict.fromkeys(fs_denovo_result_HGVS))
 
         """
@@ -302,6 +240,7 @@ class MutationsModule(BaseModel):
         """
         if fs_curated_result_HGVS or fs_denovo_result_HGVS:
             fs_result_prelim["query_def"] = str(query_def)
+
             if param_type:
                 fs_result_prelim["mutations"] = {"type": param_type}
             else:
@@ -312,10 +251,12 @@ class MutationsModule(BaseModel):
                 fs_result_prelim["mutations"]["curated"] = fs_curated_list_validation
             if fs_denovo_result_HGVS:
                 fs_result_prelim["mutations"]["de_novo"] = fs_denovo_list_validation
+
         elif not fs_curated_result_HGVS and not fs_denovo_result_HGVS:
             return None
-        
-        return fs_result_prelim            
+
+        # print(f"{fs_result_prelim}\n")
+        return fs_result_prelim    
 
     def indel(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, insert_type="", del_type="", curated_in_list=None, curated_del_list=None):
         """
@@ -575,6 +516,195 @@ class MutationsModule(BaseModel):
         
         return ns_result_prelim
 
+    def gap_events(self, hsp_query, hsp_sbjct, hsp_sbjct_start):
+        """
+        Tracks non-triplet gap events (not full codon indels) relative to CARD reference nucleotide coordinates
+
+        ** Code optimized with Codex **
+        """
+        if len(hsp_query) != len(hsp_sbjct):
+            raise ValueError("Aligned query and subject must have equal lengths.")
+
+        reference_index = hsp_sbjct_start - 1 # our subject: the CARD reference (zero-based)
+        alignment_index = 0  # our pointer as we go character by character through a sequence string (zero-based)
+
+        # print("\n====================\n"
+        #     f"hsp_sbjct:\n{hsp_sbjct}\n"
+        #     f"hsp_query:\n{hsp_query}\n"
+        #     f"hsp_sbjct_start: {hsp_sbjct_start}\n"
+        #     f"reference_index: {reference_index}\n"
+        # )
+
+        while alignment_index < len(hsp_query):  # while we aren't over the total length of our (potentially) gappy query
+            query_base = hsp_query[alignment_index]
+            subject_base = hsp_sbjct[alignment_index]
+
+            """nucleotide deletions"""
+            if query_base == "-" and subject_base != "-":  # if a gap (deletion) is found, the game is on
+                gap_event_start = reference_index
+                gap_event_bases = []
+
+                while (  # once we've tracked a gap, keep going until it ends
+                    alignment_index < len(hsp_query)
+                    and hsp_query[alignment_index] == "-"
+                    and hsp_sbjct[alignment_index] != "-"
+                       ):
+                    gap_event_bases.append(hsp_sbjct[alignment_index])
+                    reference_index += 1
+                    alignment_index += 1
+
+                is_frameshift = len(gap_event_bases) % 3 != 0
+
+                yield {
+                    "type": "deletion",
+                    "is_frameshift": is_frameshift,
+                    "reference_nucl_index": gap_event_start,  # deletions are deletions (see insertion note for explanation)
+                    "length": len(gap_event_bases),
+                    "sequence": "".join(gap_event_bases),
+                    }
+                continue
+
+            """nucleotide insertions"""
+            if subject_base == "-" and query_base != "-":
+                gap_event_bases = []
+
+                while (  # game starts
+                    alignment_index < len(hsp_query)
+                    and hsp_sbjct[alignment_index] == "-"
+                    and hsp_query[alignment_index] != "-"
+                       ):
+                    gap_event_bases.append(hsp_query[alignment_index])
+                    alignment_index += 1
+
+                is_frameshift = len(gap_event_bases) % 3 != 0  # we want to start counting insertions AFTER a reference base has been "consumed"
+                                                               # note: the code doesn't yet handle insertions before the start of the reference sequence
+                has_anchor = reference_index > 0  # lets us know if the insertion happens before or after the start of the reference sequence
+                reference_nucl_index = reference_index - 1 if has_anchor else None  # insertions are reported relative to the preceding 
+                                                                                    # reference base/codon because they happen in between bases
+
+                yield {
+                    "type": "insertion",
+                    "is_frameshift": is_frameshift,
+                    "reference_nucl_index": reference_nucl_index,
+                    "length": len(gap_event_bases),
+                    "sequence": "".join(gap_event_bases),
+                    }
+                continue
+
+            if subject_base != "-":
+                reference_index += 1
+
+            alignment_index += 1
+
+    def equivalent_gap_events(self, event, card_dna_ref):
+        """
+        Searches from the start of a gap event outwards and returns every equivalent alignment position for a gap event found in stretches of repeated sequence.
+
+        ** Code optimized with Codex **
+        """
+        # print(f"card DNA reference\n{card_dna_ref}\n")
+        candidates = [event]  # the intial gap event is the only candidate to start -- we intialized the list with our baseline gap event
+        # print(f"initial gap event: {event}")
+
+        """deletions"""
+        if event["type"] == "deletion":
+            event_start = event["reference_nucl_index"]
+            event_length = event["length"]
+
+            ## left outward search
+            left_start = event_start
+
+            # print(f"event sequence: {event["sequence"]}\nleft boundary: {card_dna_ref[left_start - 1]} and right boundary {card_dna_ref[left_start + event_length - 1]}")
+
+            while(left_start > 0 
+                  and card_dna_ref[left_start - 1] == card_dna_ref[left_start + event_length - 1]
+                  ):
+                left_start -= 1  # shift the index left
+                candidate = event.copy()  # making a copy of the viable candidate we just found
+                candidate["reference_nucl_index"] = left_start  # replacing its index with the shifted index
+                candidates.append(candidate)
+
+            ## right outward search
+            right_start = event_start
+
+            while(right_start + event_length < len(card_dna_ref)
+                  and card_dna_ref[right_start] == card_dna_ref[right_start + event_length]
+                  ):
+                right_start += 1  # shift the index right
+                candidate = event.copy()
+                candidate["reference_nucl_index"] = right_start
+                # print(f"\nright search candidate\n{candidate}\n")
+                candidates.append(candidate)
+
+            """insertions"""
+        elif event["type"] == "insertion":
+            boundary = event["reference_nucl_index"] + 1
+            inserted_sequence = event["sequence"]
+            # print(f"\ninsertion boundary: {boundary}\ninserted sequence: {inserted_sequence}\n")
+
+            ## left outward search
+            left_boundary = boundary
+            left_sequence = inserted_sequence
+
+            while(left_boundary > 0
+                  and left_sequence
+                  and card_dna_ref[left_boundary - 1] == left_sequence[-1]
+                  ):
+                left_sequence = (card_dna_ref[left_boundary - 1] + left_sequence[:-1])  # rotating the sequence 
+                left_boundary -= 1
+
+                candidate = event.copy()
+                candidate["reference_nucl_index"] = left_boundary - 1
+                candidate["sequence"] = left_sequence
+                candidates.append(candidate)
+
+            ##right outward search
+            right_boundary = boundary
+            right_sequence = inserted_sequence      
+            while (right_boundary < len(card_dna_ref)
+                   and right_sequence
+                   and card_dna_ref[right_boundary] == right_sequence[0]
+                   ):
+                right_sequence = (right_sequence[1:] + card_dna_ref[right_boundary])
+                right_boundary += 1
+
+                candidate = event.copy()
+                candidate["reference_nucl_index"] = right_boundary - 1
+                candidate["sequence"] = right_sequence
+                candidates.append(candidate)
+
+        return candidates      
+
+    def gap_resolver(self, event, card_dna_ref, fs_dict_list):
+        """
+        Looks at all gap event candidates, sees if there's a match to a CARD curated frameshift/indel, and chooses the curated option if possible.
+        
+        ** Code optimized with Codex **
+        """
+        curated_candidates = []
+
+        for candidate in self.equivalent_gap_events(event, card_dna_ref):
+            aa_pos = (candidate["reference_nucl_index"] // 3 + 1)
+            codon_start_index = (aa_pos - 1) * 3
+            reference_codon = card_dna_ref[codon_start_index:codon_start_index + 3]
+            original_aa = str(Seq(reference_codon).translate(table=11))
+
+            if any(
+                eachfs["original_aa"] == original_aa
+                and eachfs["aa_position"] == aa_pos
+                for eachfs in fs_dict_list
+                ):
+                curated_candidates.append(candidate)
+
+        if curated_candidates:
+            return min(
+                curated_candidates,
+                key=lambda candidate: abs(candidate["reference_nucl_index"] - event["reference_nucl_index"])
+                # super funky, but here we're trying to see which curated candidate is closest to the initial gap event
+                ), True
+
+        return event, False
+
     def single_fs(self, aa_pos, translated_stripped_seq, split_ref):
         affected_codon = split_ref[aa_pos - 1]
         corr_aa = translated_stripped_seq[aa_pos - 1]  # index starts at 0
@@ -582,11 +712,11 @@ class MutationsModule(BaseModel):
 
         return aa_pos, affected_codon, corr_aa, translated_codon
     
-    def termination(self, translated_stripped_seq, aa_pos):
+    def termination(self, translated_seq, aa_pos):
         aa_count = 0
 
         ## locating the frameshift in the translated protein (entire seq. chunk + position of termination)
-        for aa in translated_stripped_seq[aa_pos - 1:]: # index starts at 0
+        for aa in translated_seq[aa_pos - 1:]: # index starts at 0
             if aa == "*":
                 break
             else:
