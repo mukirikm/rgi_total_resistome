@@ -60,6 +60,7 @@ class Homolog(MutationsModule):
 
                     for blastn_record in blastn_records:
                         bnquery_def = blastn_record.query
+                        # print(f"query definition: {bnquery_def}")
 
                         if blastn_record.alignments:
                             for alignment in blastn_record.alignments:
@@ -76,7 +77,7 @@ class Homolog(MutationsModule):
 
                                 modelTypeID = self.extract_nth_bar(alignTitle, 0)
                                 
-                                if modelTypeID == 40292: ## homologs don't have curated frameshifts anyway
+                                if modelTypeID == 40292:  ## homologs don't have curated frameshifts anyway
                                     for hsp in alignment.hsps:
                                         card_dna_ref = json_data[modelID]["model_sequences"]["sequence"][seqinModel]["dna_sequence"]["sequence"]
                                         
@@ -85,10 +86,18 @@ class Homolog(MutationsModule):
                                         ns_out = self.nonsense(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def)
 
                                         if fs_out is not None:
+                                            fs_out["mutation_model_id"] = modelID
+                                            fs_out["mutation_sequence_id"] = seqinModel
                                             fs_result.append(fs_out)
+
                                         if indel_out is not None:
+                                            indel_out["mutation_model_id"] = modelID
+                                            indel_out["mutation_sequence_id"] = seqinModel
                                             indel_result.append(indel_out)
+
                                         if ns_out is not None:
+                                            ns_out["mutation_model_id"] = modelID
+                                            ns_out["mutation_sequence_id"] = seqinModel
                                             ns_result.append(ns_out)
                                 else:
                                     pass
@@ -107,14 +116,6 @@ class Homolog(MutationsModule):
                 perfect = {}
                 strict = {}
                 loose = {}
-
-				## filter MM results to only entries matching this blast_record's query
-                bpquery_def = blast_record.query
-                mutation_result = (fs_result or []) + (indel_result or []) + (ns_result or [])
-
-                mutation_result_filtered = [
-					m for m in mutation_result
-					if m["query_def"].split()[0] in bpquery_def] if mutation_result else None
                 
                 for alignment in blast_record.alignments:
                     alignTitle = alignment.title
@@ -150,6 +151,19 @@ class Homolog(MutationsModule):
 
                         # logger.info("pass_evalue: {}".format(pass_evalue))
                         # logger.info("pass_bitscore: {}".format(pass_bitscore))
+
+                        ## filter MM results to only entries matching this blast_record's query, model ID, and sequence ID
+                        bpquery_def = blast_record.query
+                        mutation_result = (fs_result or []) + (indel_result or []) + (ns_result or [])
+
+                        mutation_result_filtered = [
+                            mutation
+                            for mutation in mutation_result
+                            if mutation["query_def"].split()[0] in bpquery_def
+                            and mutation["mutation_model_id"] == modelID
+                            and mutation["mutation_sequence_id"] == seqinModel] if mutation_result else None
+
+                        # print(mutation_result_filtered)
 
                         init = 0
 
