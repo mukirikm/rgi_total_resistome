@@ -31,7 +31,7 @@ class MutationsModule(BaseModel):
         """
         Searches for SNVs in sequences.
         """
-
+        
         for eachs in snp_dict_list:
             srv_output = {}
             srv_output["query_def"] = query_def
@@ -191,7 +191,7 @@ class MutationsModule(BaseModel):
         if fs_dict_list is None:
             fs_dict_list = []
 
-        translated_qry = str(Seq(hsp_query.replace("-", "")).translate(table=11))  # Seq() hates dashed gaps, so we stripped them
+        translated_qry = str(Seq(hsp_query.replace("-", "")).translate(table=11))  # Seq() hates dashed gaps, so we strip them
         hsp_start_codon = (hsp_sbjct_start - 1) // 3
 
         # print(f"query_def: {query_def}")
@@ -258,191 +258,146 @@ class MutationsModule(BaseModel):
         # print(f"{fs_result_prelim}\n")
         return fs_result_prelim    
 
-    def indel(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, insert_type="", del_type="", curated_in_list=None, curated_del_list=None):
+    def indel(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, hsp_sbjct_start=1, insert_type="", del_type="", curated_in_list=None, curated_del_list=None):
         """
         Searches for insertions and deletions in sequences.
         WIP: indels that cancel each other out (e.g., 1 ins/1 del)
         """
         
-        # for deletions
-        deletion = {}
-        qry_codon_pos = 0
-
-        # for insertions
-        sbjct_codon_pos = 0
-
         if curated_in_list is None:
             curated_in_list = []
         if curated_del_list is None:
             curated_del_list = []
 
-        # indel_curated_list_reg = []
-        # indel_denovo_list_reg = []
+        curated_indel_list = curated_in_list + curated_del_list
 
-        # indel_curated_list_validation = []
-        # indel_denovo_list_validation = []
-
-        indel_curated_result_HGVS = []
-        indel_denovo_result_HGVS = []
+        indel_curated_list_reg = []
+        indel_denovo_list_reg = []
 
         indel_result_prelim = {}
                         
-        split_ref = re.findall('.'*3, card_dna_ref)
-        split_sbjct = re.findall('.'*3, hsp_sbjct)
-        split_qry = re.findall('.'*3, hsp_query)  # to grab our actual inserted stretch of sequence
+        translated_qry = str(Seq(hsp_query.replace("-", "")).translate(table=11))
+        hsp_start_codon = (hsp_sbjct_start - 1) // 3
 
-        """ deletions """            
-        ### isolate the position of the deletion and the affected codons
-        if "-" in hsp_query:
-            ## split the query sequence into a list of codons
-            stripped_qry = hsp_query.replace("-", "")
+        for raw_event in self.gap_events(hsp_query, hsp_sbjct, hsp_sbjct_start):
 
-            ## translate the query sequence into a protein (seq stripped of gaps because Seq hates them)
-            translated_stripped_qry = str(Seq(stripped_qry).translate(table=11))
+            # filtering out frameshift gap events (only keeping full-codon indels)
+            if raw_event["is_frameshift"] or raw_event["reference_nucl_index"] is None:
+                continue
 
-            ## iterate through query codon list, find gaps + flanks, and note position
-            while qry_codon_pos < len(split_qry):  # cannot be <= here because # of items and # of indeces differ, 
-                                                         # so split_qry[3] when there are 3 items (0,1,2) will fail
-                deletion = {}
-                qry_codons = split_qry[qry_codon_pos]
+            event, is_curated = self.indel_resolver(raw_event, card_dna_ref, curated_indel_list)
 
-                if "-" in qry_codons:
-                    del_gap_count = 0
-                    qry_beginning_flank = split_qry[qry_codon_pos-1]
-                    deletion[qry_codon_pos-1] = qry_beginning_flank
+            # for deletions that do not start at codon boundaries (due to BLAST alignment quirk)
+            # this can happen if the deletion is, for example, flanked by the same base, and the final ungapped query sequence will not change if the deletion happens a base later
+            if event["type"] == "deletion" and event["reference_nucl_index"] % 3 != 0:  # the last bit means: the candidate deletion does not start at a codon boundary
+                # here, we only select candidates that DO start at a codon boundary
+                codon_aligned_candidates = [candidate
+                                            for candidate in self.equivalent_gap_events(event, card_dna_ref)
+                                            if candidate["reference_nucl_index"] % 3 == 0
+                                            ]
 
-                    while qry_codon_pos < len(split_qry) and "-" in split_qry[qry_codon_pos]:
-                        qry_current_codon = split_qry[qry_codon_pos] # snapshot of the current codon
-                        deletion[qry_codon_pos] = qry_current_codon
-                        del_gap_count += qry_current_codon.count("-")                        
+                if not codon_aligned_candidates:
+                    continue
 
-                        qry_codon_pos += 1 # updates our index to the NEXT codon after successfully identifying a gap
+                # we select the candidate whose reference coordinate is closest to BLAST's original coordinate
+                event = min(
+                        codon_aligned_candidates,
+                        key=lambda candidate: abs(candidate["reference_nucl_index"] - raw_event["reference_nucl_index"]
+                        ),
+                    )
 
-                    if qry_codon_pos < len(split_qry):
-                        qry_ending_flank = split_qry[qry_codon_pos]
-                        deletion[qry_codon_pos] = qry_ending_flank
-                        
-                        if del_gap_count % 3 == 0:  # checking that our deletion is clean codons and doesn't shift the frame
-                            del_result = self.indel_translator(deletion, split_ref, translated_stripped_qry, indel_type = "deletion")
-                        else:
-                            return None
+            # for insertions that are not anchored at the last base of a codon
+            if event["type"] == "insertion" and event["reference_nucl_index"] % 3 != 2:
+                codon_aligned_candidates = [candidate
+                                            for candidate in self.equivalent_gap_events(event, card_dna_ref)
+                                            if candidate["reference_nucl_index"] % 3 == 2
+                                            ]
 
-                        if del_result is not None and curated_del_list:
-                            result_range = range(del_result["first_pos"], del_result["last_pos"] + 1)
+                if not codon_aligned_candidates:
+                    continue
 
-                            for curated_del in curated_del_list:
-                                if curated_del["pos2"] == "n/a":  # format 1 
-                                                                  # if curated_del["deleted"] != "n/a"? do we need that?
-                                    if del_result["first_aa"] == curated_del["aa1"] and del_result["first_pos"] == curated_del["pos1"]:
-                                        indel_curated_result_HGVS.append(curated_del["full_indel"])
-                                    else:
-                                        if del_result["deletion"] not in indel_denovo_result_HGVS:
-                                            indel_denovo_result_HGVS.append(del_result["deletion"]) ## e.g., A15A
-                                else:  # format 2
-                                    del_range = range(curated_del["pos1"], curated_del["pos2"] + 1)
-                                    if all(n in result_range for n in del_range):  # if the positions of the indel found are within the range of the 
-                                                                                   # curated indel
-                                        indel_curated_result_HGVS.append(curated_del["full_indel"])
-                                        if del_result["first_pos"] != curated_del["pos1"]:
-                                            indel_denovo_result_HGVS.append(del_result["deletion"]) ## e.g., A15A
-                                    else:
-                                        if del_result["deletion"] not in indel_denovo_result_HGVS:
-                                            indel_denovo_result_HGVS.append(del_result["deletion"]) ## e.g., A15A
-                        elif del_result is not None and not curated_del_list:
-                            if del_result["deletion"] not in indel_denovo_result_HGVS:
-                                indel_denovo_result_HGVS.append(del_result["deletion"]) ## e.g., A15A
-                    else:
-                        qry_ending_flank = None
+                # we select the candidate whose reference coordinate is closest to BLAST's original coordinate
+                event = min(
+                        codon_aligned_candidates,
+                        key=lambda candidate: abs(candidate["reference_nucl_index"] - raw_event["reference_nucl_index"]
+                        ),
+                    )
 
-                ## for any other nucleotide in the sequence DO NOT COMMENT OUT  
+            # calculating the indices we need to map the gap event back to the CARD reference; zero-based
+            event_start_index = event["reference_nucl_index"]  # for insertions, this is one base BEFORE the inserted sequence
+            event_length = event["length"]
+            event_end_index = event_start_index + event_length
+
+            first_base_pos = ((event_start_index) // 3) + 1
+            end_base_pos = ((event_end_index - 3) // 3) + 1  # aa position of the FIRST BASE of the LAST CODON of the gap event; one-based
+
+            qry_aa_index = (first_base_pos - 1) - hsp_start_codon  # zero-based
+
+            if qry_aa_index < 0 or qry_aa_index >= len(translated_qry):
+                continue
+
+            if event["type"] == "deletion":
+                deleted_nt = card_dna_ref[event_start_index:event_end_index]
+                tr_deleted_nt = str(Seq(deleted_nt).translate(table=11))
+
+                first_del_codon = card_dna_ref[event_start_index:event_start_index + 3]
+                last_del_codon = card_dna_ref[event_end_index - 3:event_end_index]
+
+                # translating codons to amino acids
+                tr_first_del_codon = str(Seq(first_del_codon).translate(table=11))
+                tr_last_del_codon = str(Seq(last_del_codon).translate(table=11))
+
+                if event_length == 3:  # single codon deletions
+                    indel_reg = f"{tr_first_del_codon}{first_base_pos}del{tr_deleted_nt}"
+                else:  # multi-codon deletions
+                    indel_reg = f"{tr_first_del_codon}{first_base_pos}_{tr_last_del_codon}{end_base_pos}del{tr_deleted_nt}"
+
+                if is_curated:
+                    indel_curated_list_reg.append(indel_reg)  # e.g.,P233_G234delPG or P233delP
                 else:
-                    qry_codon_pos += 1
-            
-        """ insertions """
-        ### isolate the position of the insertion and the affected codons (plus flanking codons)
-        if "-" in hsp_sbjct:
-            ## split the subject sequence into a list of codons
-            stripped_sbjct = hsp_sbjct.replace("-", "")
-            
-            ## translate the subject sequence into a protein (seq stripped of gaps because Seq hates them)
-            translated_stripped_sbjct = str(Seq(stripped_sbjct).translate(table=11, gap="-"))
+                    indel_denovo_list_reg.append(indel_reg)
 
-            ## iterate through query codon list, find gaps + flanks, and note position
-            while sbjct_codon_pos < len(split_sbjct):  # cannot be <= here because # of items and # of indeces differ, 
-                                                         # so split_qry[3] when there are 3 items (0,1,2) will fail
-                insertion = {}
-                sbjct_codons = split_sbjct[sbjct_codon_pos]
+            if event["type"] == "insertion":
+                insertion_anchor = event_start_index
 
-                if "-" in sbjct_codons:
-                    insert_gap_count = 0
-                    sbjct_beginning_flank = split_sbjct[sbjct_codon_pos-1]
-                    insertion[sbjct_codon_pos-1] = sbjct_beginning_flank
+                if insertion_anchor % 3 == 2:  # ensures the insertion anchor is the third/final base of a codon (the insertion follows and sits cleanly between two codons)
+                    tr_ins_sequence = str(Seq(event["sequence"]).translate(table=11))
 
-                    while sbjct_codon_pos < len(split_sbjct) and "-" in split_sbjct[sbjct_codon_pos]:
-                        sbjct_current_codon = split_sbjct[sbjct_codon_pos] # snapshot of the current codon
-                        insertion[sbjct_codon_pos] = sbjct_current_codon
-                        insert_gap_count += sbjct_current_codon.count("-")                        
+                    # remember: index slices are exclusive
+                    first_flank_codon = card_dna_ref[insertion_anchor - 2:insertion_anchor + 1]
+                    last_flank_codon = card_dna_ref[insertion_anchor + 1:insertion_anchor + 4]
 
-                        sbjct_codon_pos += 1 # updates our index to the NEXT codon after successfully identifying a gap
+                    first_flank_pos = (insertion_anchor // 3) + 1  # insertion_achor // 3 for every base of ONE codon is the same because they're part of the same codon
+                    end_flank_pos = first_flank_pos + 1
 
-                    if sbjct_codon_pos < len(split_sbjct):
-                        sbjct_ending_flank = split_sbjct[sbjct_codon_pos]
-                        insertion[sbjct_codon_pos] = sbjct_ending_flank
+                    # translating codons to amino acids
+                    tr_first_flank_codon = str(Seq(first_flank_codon).translate(table=11))
+                    tr_last_flank_codon = str(Seq(last_flank_codon).translate(table=11))
 
-                        insertion_slice = split_qry[next(iter(insertion)) + 1:next(reversed(insertion))]
+                    indel_reg = f"{tr_first_flank_codon}{first_flank_pos}_{tr_last_flank_codon}{end_flank_pos}ins{tr_ins_sequence}"
 
-                        if insert_gap_count % 3 == 0:  # checking that our insertion is clean codons and doesn't shift the frame
-                            in_result = self.indel_translator(insertion, split_ref, translated_stripped_sbjct, insertion_slice=insertion_slice, indel_type = "insertion")
-                        else:
-                            return None
-
-                        if in_result is not None and curated_in_list:
-                            result_range = range(in_result["first_pos"], in_result["last_pos"] + 1)
-
-                            for curated_in in curated_in_list:
-                                if curated_in["pos2"] == "n/a":  # format 1 
-                                                                  # if curated_in["inserted"] != "n/a"? do we need that?
-                                    if in_result["first_aa"] == curated_in["aa1"] and in_result["first_pos"] == curated_in["pos1"]:
-                                        indel_curated_result_HGVS.append(curated_in["full_indel"])
-                                    else:
-                                        if in_result["insertion"] not in indel_denovo_result_HGVS:
-                                            indel_denovo_result_HGVS.append(in_result["insertion"]) ## e.g., A15A
-                                else:  # format 2
-                                    del_range = range(curated_in["pos1"], curated_in["pos2"] + 1)
-                                    if all(n in result_range for n in del_range):  # if the positions of the indel found are within the range of the 
-                                                                                   # curated indel
-                                        indel_curated_result_HGVS.append(curated_in["full_indel"])
-                                        if in_result["first_pos"] != curated_in["pos1"]:
-                                            indel_denovo_result_HGVS.append(in_result["insertion"]) ## e.g., A15A
-                                    else:
-                                        if in_result["insertion"] not in indel_denovo_result_HGVS:
-                                            indel_denovo_result_HGVS.append(in_result["insertion"]) ## e.g., A15A
-                        elif in_result is not None and not curated_in_list:
-                            if in_result["insertion"] not in indel_denovo_result_HGVS:
-                                indel_denovo_result_HGVS.append(in_result["insertion"]) ## e.g., A15A
+                    if is_curated:
+                        indel_curated_list_reg.append(indel_reg)  # e.g., P232_G234insP or P232_G236insYLP
                     else:
-                        sbjct_ending_flank = None
+                        indel_denovo_list_reg.append(indel_reg)
 
-                ## for any other nucleotide in the sequence DO NOT COMMENT OUT  
-                else:
-                    sbjct_codon_pos += 1
-        
-        indel_curated_result_HGVS = list(dict.fromkeys(indel_curated_result_HGVS)) # bandaid solution to dedupe mutations...
-        indel_denovo_result_HGVS = list(dict.fromkeys(indel_denovo_result_HGVS))
+        indel_curated_list_reg = list(dict.fromkeys(indel_curated_list_reg))  
+        indel_denovo_list_reg = list(dict.fromkeys(indel_denovo_list_reg))
 
-        if indel_curated_result_HGVS or indel_denovo_result_HGVS:
+        if indel_curated_list_reg or indel_denovo_list_reg:
             indel_result_prelim["query_def"] = str(query_def)
             indel_result_prelim["mutations"] = {"type": "indel mutation from peptide sequence"}
 
             # you can change the output syntax here
-            if indel_curated_result_HGVS:
-                indel_result_prelim["mutations"]["curated"] = indel_curated_result_HGVS
-            if indel_denovo_result_HGVS:
-                indel_result_prelim["mutations"]["de_novo"] = indel_denovo_result_HGVS
-        elif not indel_curated_result_HGVS and not indel_denovo_result_HGVS:
-            return None
+            if indel_curated_list_reg:
+                indel_result_prelim["mutations"]["curated"] = indel_curated_list_reg
+            if indel_denovo_list_reg:
+                indel_result_prelim["mutations"]["de_novo"] = indel_denovo_list_reg
 
-        return indel_result_prelim       
+        elif not indel_curated_list_reg and not indel_denovo_list_reg:
+                return None
+
+        return indel_result_prelim
 
     def nonsense(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, param_type=None, ns_dict_list=None):
         """
@@ -677,7 +632,7 @@ class MutationsModule(BaseModel):
 
     def gap_resolver(self, event, card_dna_ref, fs_dict_list):
         """
-        Looks at all gap event candidates, sees if there's a match to a CARD curated frameshift/indel, and chooses the curated option if possible.
+        Looks at all gap event candidates, sees if there's a match to a CARD curated frameshift, and chooses the curated option if possible.
         
         ** Code optimized with Codex **
         """
@@ -702,6 +657,79 @@ class MutationsModule(BaseModel):
                 key=lambda candidate: abs(candidate["reference_nucl_index"] - event["reference_nucl_index"])
                 # super funky, but here we're trying to see which curated candidate is closest to the initial gap event
                 ), True
+
+        return event, False
+
+    def indel_event_to_hgvs(self, event, card_dna_ref):
+        """
+        Return an indel as an HGVS-like string >> for a codon-aligned event.
+        
+        ** Code optimized with Codex **
+        """
+
+        event_start = event["reference_nucl_index"]
+        event_end = event_start + event["length"]
+
+        if event["type"] == "deletion":
+            if event_start % 3 != 0:
+                return None
+
+            first_pos = (event_start // 3) + 1
+            last_pos = ((event_end - 3) // 3) + 1
+
+            deleted_nt = card_dna_ref[event_start:event_end]
+            deleted_aa = str(Seq(deleted_nt).translate(table=11))
+
+            first_aa = str(
+                Seq(card_dna_ref[event_start:event_start + 3]).translate(table=11)
+            )
+            last_aa = str(
+                Seq(card_dna_ref[event_end - 3:event_end]).translate(table=11)
+            )
+
+            if event["length"] == 3:
+                return f"{first_aa}{first_pos}del{deleted_aa}"
+
+            return f"{first_aa}{first_pos}_{last_aa}{last_pos}del{deleted_aa}"
+
+        if event["type"] == "insertion":
+            anchor = event_start
+
+            if anchor < 2 or anchor % 3 != 2:
+                return None
+
+            first_pos = (anchor // 3) + 1
+            last_pos = first_pos + 1
+
+            inserted_aa = str(Seq(event["sequence"]).translate(table=11))
+            first_aa = str(
+                Seq(card_dna_ref[anchor - 2:anchor + 1]).translate(table=11)
+            )
+            last_aa = str(
+                Seq(card_dna_ref[anchor + 1:anchor + 4]).translate(table=11)
+            )
+
+            return f"{first_aa}{first_pos}_{last_aa}{last_pos}ins{inserted_aa}"
+
+        return None
+
+    def indel_resolver(self, event, card_dna_ref, curated_indel_list):
+        """
+        Looks at all gap event candidates, sees if there's a match to a CARD curated indel, and chooses the curated option if possible.
+        ** Code optimized with Codex **
+        """
+
+        curated_indels = {
+            indel["full_indel"]
+            for indel in curated_indel_list
+            if indel.get("full_indel")
+        }
+
+        for candidate in self.equivalent_gap_events(event, card_dna_ref):
+            candidate_indel = self.indel_event_to_hgvs(candidate, card_dna_ref)
+
+            if candidate_indel in curated_indels:
+                return candidate, True
 
         return event, False
 
