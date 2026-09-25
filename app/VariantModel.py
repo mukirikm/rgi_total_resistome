@@ -158,26 +158,33 @@ class Variant(MutationsModule):
 										real_sbjct_length = len(sbjct_seq)
 
 										card_dna_ref = json_data[model_id]["model_sequences"]["sequence"][seq_in_model]["dna_sequence"]["sequence"]
+										fs_param_type = json_data[model_id]["model_param"].get("40494")
+										ns_param_type = json_data[model_id]["model_param"].get("40394")
 
-										if fs_dict_list:
-											fs_out = self.frameshift(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, hsp_sbjct_start=hsp.sbjct_start, param_type=json_data[model_id]["model_param"]["40494"]["param_type"], fs_dict_list=fs_dict_list)
-										else:
-											fs_out = None
-										if pep_insert_dict_list or pep_del_dict_list:
-											indel_out = self.indel(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, curated_in_list=pep_insert_dict_list, curated_del_list=pep_del_dict_list)
-										else:
-											indel_out = None
-										if ns_dict_list:
-											ns_out = self.nonsense(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, param_type=json_data[model_id]["model_param"]["40394"]["param_type"], ns_dict_list=ns_dict_list)
-										else:
-											ns_out = None
+										fs_out = self.frameshift(
+											hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, hsp_sbjct_start=hsp.sbjct_start, fs_dict_list=fs_dict_list,
+											param_type=fs_param_type["param_type"] if fs_param_type else None)
+
+										indel_out = self.indel(
+											hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, curated_in_list=pep_insert_dict_list,
+											curated_del_list=pep_del_dict_list, hsp_sbjct_start=hsp.sbjct_start)
+
+										ns_out = self.nonsense(
+											hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, hsp.sbjct_start, ns_dict_list=ns_dict_list,
+											param_type=ns_param_type["param_type"] if ns_param_type else None)
 
 										# fetch mutations from MM
 										if fs_out is not None:
+											fs_out["mutation_model_id"] = model_id
+											fs_out["mutation_sequence_id"] = seq_in_model
 											fs_result.append(fs_out)
 										if indel_out is not None:
+											indel_out["mutation_model_id"] = model_id
+											indel_out["mutation_sequence_id"] = seq_in_model
 											indel_result.append(indel_out)
 										if ns_out is not None:
+											ns_out["mutation_model_id"] = model_id
+											ns_out["mutation_sequence_id"] = seq_in_model
 											ns_result.append(ns_out)
 								else:
 									pass
@@ -195,14 +202,6 @@ class Variant(MutationsModule):
 				perfect = {}
 				strict = {}
 				loose = {}
-
-				## filter MM results to only entries matching this blast_record's query
-				bpquery_def = blast_record.query
-				mutation_result = (fs_result or []) + (indel_result or []) + (ns_result or [])
-
-				mutation_result_filtered = [
-					m for m in mutation_result
-					if m["query_def"].split()[0] in bpquery_def] if mutation_result else None
 										
 				for alignment in blast_record.alignments:
 					align_title = alignment.title
@@ -241,6 +240,23 @@ class Variant(MutationsModule):
 					seq_in_model = model_descrpt[underscore_in_MD+1: model_descrpt.index(' ')]
 					pass_value = self.extract_nth_bar(alignment.title, 1)
 					# logger.info("pass_value: {}".format(pass_value))
+
+					## filter MM results to only entries matching this blast_record's query, model ID, and sequence ID
+					bpquery_def = blast_record.query
+					orf_id = bpquery_def.split(" # ", 1)[0]
+					query_id, separator, orf_number = orf_id.rpartition("_")
+
+					if not separator or not orf_number.isdigit():
+						query_id = orf_id
+
+					mutation_result = (fs_result or []) + (indel_result or []) + (ns_result or [])
+
+					mutation_result_filtered = [
+						mutation
+						for mutation in mutation_result
+						if mutation["query_def"].split()[0] == query_id
+						and mutation["mutation_model_id"] == model_id
+						and mutation["mutation_sequence_id"] == seq_in_model] if mutation_result else None
 
 					if model_type_id == 40293:
 						try:

@@ -82,8 +82,8 @@ class Homolog(MutationsModule):
                                         card_dna_ref = json_data[modelID]["model_sequences"]["sequence"][seqinModel]["dna_sequence"]["sequence"]
                                         
                                         fs_out = self.frameshift(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, hsp_sbjct_start=hsp.sbjct_start)
-                                        indel_out = self.indel(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def)
-                                        ns_out = self.nonsense(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def)
+                                        indel_out = self.indel(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, hsp_sbjct_start=hsp.sbjct_start)
+                                        ns_out = self.nonsense(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, hsp.sbjct_start)
 
                                         if fs_out is not None:
                                             fs_out["mutation_model_id"] = modelID
@@ -154,16 +154,22 @@ class Homolog(MutationsModule):
 
                         ## filter MM results to only entries matching this blast_record's query, model ID, and sequence ID
                         bpquery_def = blast_record.query
+                        orf_id = bpquery_def.split(" # ", 1)[0]
+                        query_id, separator, orf_number = orf_id.rpartition("_")
+
+                        if not separator or not orf_number.isdigit():
+                            query_id = orf_id
+
                         mutation_result = (fs_result or []) + (indel_result or []) + (ns_result or [])
 
                         mutation_result_filtered = [
                             mutation
                             for mutation in mutation_result
-                            if mutation["query_def"].split()[0] in bpquery_def
+                            if mutation["query_def"].split()[0] == query_id
                             and mutation["mutation_model_id"] == modelID
                             and mutation["mutation_sequence_id"] == seqinModel] if mutation_result else None
 
-                        # print(mutation_result_filtered)
+                        # print(f"mutation results filtered: {mutation_result_filtered}\n")
 
                         init = 0
 
@@ -203,7 +209,7 @@ class Homolog(MutationsModule):
                                 hsp_bitscore=hsp.bits, 
                                 pass_val=pass_bitscore
                                 )
-                                                        
+
                             mm_record = mm_output[0] if mm_output else None
                             de_novo_mutations = mm_record.get("de_novo_mutations") if mm_record else None
 

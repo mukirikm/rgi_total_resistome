@@ -31,7 +31,44 @@ class MutationsModule(BaseModel):
         """
         Searches for SNVs in sequences.
         """
-        
+
+        # to handle queries that may not have SNPs (at all, or outside of the HSP), but may have other mutations
+        if detection_mode in ("PVM", "POM") and not snp_dict_list:
+            yield {
+                "query_def": query_def,
+                "has_snp": False,
+                "snp_scope": "nonexistent",
+                }
+            return
+
+        if detection_mode == "PVM":
+            hsp_end = hsp_sbjct_start + real_sbjct_length
+
+            if not any(
+                hsp_sbjct_start < eachs["position"] < hsp_end
+                for eachs in snp_dict_list
+                ):
+                yield {
+                    "query_def": query_def,
+                    "has_snp": False,
+                    "snp_scope": "out_of_scope",
+                    }
+                return
+
+        if detection_mode == "POM":
+            hsp_end = hsp_sbjct_start + real_qry_length
+
+            if not any(
+                hsp_sbjct_start < int(eachs["position"]) < hsp_end
+                for eachs in snp_dict_list
+            ):
+                yield {
+                    "query_def": query_def,
+                    "has_snp": False,
+                    "snp_scope": "out_of_scope",
+                }
+                return
+
         for eachs in snp_dict_list:
             srv_output = {}
             srv_output["query_def"] = query_def
@@ -261,7 +298,6 @@ class MutationsModule(BaseModel):
     def indel(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, hsp_sbjct_start=1, insert_type="", del_type="", curated_in_list=None, curated_del_list=None):
         """
         Searches for insertions and deletions in sequences.
-        WIP: indels that cancel each other out (e.g., 1 ins/1 del)
         """
         
         if curated_in_list is None:
@@ -399,7 +435,7 @@ class MutationsModule(BaseModel):
 
         return indel_result_prelim
 
-    def nonsense(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, param_type=None, ns_dict_list=None):
+    def nonsense(self, hsp_query, hsp_sbjct, card_dna_ref, query_def, hsp_sbjct_start, param_type=None, ns_dict_list=None):
         """
         Searches for nonsense mutations in sequences.
         """
@@ -412,44 +448,21 @@ class MutationsModule(BaseModel):
         if ns_dict_list is None:
             ns_dict_list = []
 
-        split_ref = re.findall('.'*3, card_dna_ref)
-        split_qry = re.findall('.'*3, hsp_query)  # to grab our actual inserted stretch of sequence
+        for event in self.nonsense_events(hsp_query, hsp_sbjct, card_dna_ref, hsp_sbjct_start):
+            nonsense_mutation = event["mutation"]
 
-        stop_codons = ["UAA", "UAG", "UGA", "TAA", "TAG", "TGA"]
+            is_curated = any(
+                curated_ns["original_aa"] == event["original_aa"]
+                and curated_ns["aa_position"] == event["aa_position"]
+                for curated_ns in ns_dict_list
+            )
 
-        ## test print statements
-        # print(f"curated nonsense mutations:{ns_dict_list}\nsplit ref: {split_ref}\nsplit query: {split_qry}\n")
-
-        for stop_pos, qry_codon in enumerate(split_qry, start=1):
-            if qry_codon not in stop_codons:
-                continue
-
-            ref_index = stop_pos - 1
-
-            # the aligned query and CARD reference can have different lengths
-            # skip stops that cannot be mapped instead of indexing past split_ref
-            if not 0 <= ref_index < len(split_ref):
-                continue
-
-            affected_aa = str(Seq(split_ref[ref_index]).translate(table=11))
-
-            # a stop already present in CARD is the expected termination codon, not a newly introduced nonsense mutation
-            if affected_aa == "*":
-                continue
-
-            nonsense_mutation = f"{affected_aa}{stop_pos}Ter"
-
-            if ns_dict_list:
-                for eachns in ns_dict_list:
-                    if eachns["original_aa"] == affected_aa and eachns["aa_position"] == stop_pos:
-                        ns_curated_result_HGVS.append(nonsense_mutation)
-
-                if nonsense_mutation not in ns_curated_result_HGVS:
-                    ns_denovo_result_HGVS.append(nonsense_mutation)
-            elif nonsense_mutation not in ns_denovo_result_HGVS:
+            if is_curated:
+                ns_curated_result_HGVS.append(nonsense_mutation)
+            else:
                 ns_denovo_result_HGVS.append(nonsense_mutation)
 
-        ns_curated_result_HGVS = list(dict.fromkeys(ns_curated_result_HGVS)) # bandaid solution to dedupe mutations...
+        ns_curated_result_HGVS = list(dict.fromkeys(ns_curated_result_HGVS))
         ns_denovo_result_HGVS = list(dict.fromkeys(ns_denovo_result_HGVS))
 
         """
@@ -662,7 +675,7 @@ class MutationsModule(BaseModel):
 
     def indel_event_to_hgvs(self, event, card_dna_ref):
         """
-        Return an indel as an HGVS-like string >> for a codon-aligned event.
+        Returns an indel as an HGVS-like string for a codon-aligned events.
         
         ** Code optimized with Codex **
         """
@@ -716,6 +729,7 @@ class MutationsModule(BaseModel):
     def indel_resolver(self, event, card_dna_ref, curated_indel_list):
         """
         Looks at all gap event candidates, sees if there's a match to a CARD curated indel, and chooses the curated option if possible.
+
         ** Code optimized with Codex **
         """
 
@@ -732,13 +746,6 @@ class MutationsModule(BaseModel):
                 return candidate, True
 
         return event, False
-
-    def single_fs(self, aa_pos, translated_stripped_seq, split_ref):
-        affected_codon = split_ref[aa_pos - 1]
-        corr_aa = translated_stripped_seq[aa_pos - 1]  # index starts at 0
-        translated_codon = str(Seq(affected_codon).translate(table=11))
-
-        return aa_pos, affected_codon, corr_aa, translated_codon
     
     def termination(self, translated_seq, aa_pos):
         aa_count = 0
@@ -751,80 +758,96 @@ class MutationsModule(BaseModel):
                 aa_count += 1
         
         return aa_count + 1
-    
-    def indel_translator(self, indel, split_ref, translated_stripped_seq, insertion_slice=None, indel_type=None):            
-        unpacked_indel = list(indel.items())
 
-        if insertion_slice is None:
-            insertion_slice = []
+    def nonsense_events(self, hsp_query, hsp_sbjct, card_dna_ref, hsp_sbjct_start=1):
+        """
+        Yields directly mappable nonsense substitutions.
+        Does not handle STOPs inside frameshifted/gap-containing codons.
 
-        # validating the positions in our indel to make sure nothing is out of bounds (i've learned my lesson)
-        max_pos = max([pos for pos, codon in unpacked_indel])  # finding the max position (our upper bound)
+        ** Code optimized with Codex **
+        """
 
-        if max_pos - 1 >= len(translated_stripped_seq):
-            return None
+        if len(hsp_query) != len(hsp_sbjct):  # needed so that our later zip() doesn't stop short
+            raise ValueError("Aligned query and subject must be equal in length!")
 
-        del_codons = ""
+        stop_codons = ["UAA", "UAG", "UGA", "TAA", "TAG", "TGA"]
 
-        if indel_type == "insertion":
-            in_dict = {}
-            in_slice = str(Seq(insertion_slice[0]).translate(table=11))
+        reference_index = hsp_sbjct_start - 1  # CARD reference coord -- zero-based
 
-            for i, (position, codon) in enumerate(unpacked_indel):  # we don't actually access codon... but you never know when you'll need it? :^)
-                if i == 0:
-                    affected_codon = split_ref[position]
-                    original_aa = str(Seq(affected_codon).translate(table=11))
+        # running (query bases consumed - reference bases consumed) % 3
+        frame_offset = 0  # frame_offset == 0 >> currently in frame
+                          # frame_offset == 1 >> query is one base ahead
+                          # frame_offset == 2 >> query is one base behind (if -1) or two bases ahead
 
-                    beginning_flank = original_aa
-                    beginning_pos = position + 1  # adjusts the position so it isn't just the index of the string
+        current_codon = None
 
-                    in_dict["first_aa"] = beginning_flank
-                    in_dict["first_pos"] = beginning_pos 
-                elif i == 1:
-                    middle_pos = position + 1
+        for query_base, subject_base in zip(hsp_query, hsp_sbjct):  # walking along the sequence strings in tandem
+            if subject_base != "-" and reference_index % 3 == 0:  # start tracking at a CARD codon boundary
+                current_codon = {
+                    "reference_start": reference_index,
+                    "query_bases": [],
+                    "clean_mapping": frame_offset == 0
+                }
 
-                elif i == len(unpacked_indel) - 1:
-                    affected_codon = split_ref[position - 1]
-                    original_aa = str(Seq(affected_codon).translate(table=11))
+            if current_codon is not None:
+                codon_start = current_codon["reference_start"]
 
-                    end_flank = original_aa
-                    end_pos = position + 1
+                if subject_base == "-":  # insertion inside the active codon's alignment span; no base in the CARD reference, so reference_index cannot advance
+                    current_codon["clean_mapping"] = False
 
-                    in_dict["last_aa"] = end_flank
-                    in_dict["last_pos"] = end_pos
+                elif codon_start <= reference_index <= codon_start + 2:  # within current codon start and end boundaries (one of the three reference bases)
+                    if query_base == "-":  # corresponding query base is deleted
+                        current_codon["clean_mapping"] = False
+                    else:  # a real query base maps to the CARD codon position! >> candidate!
+                        current_codon["query_bases"].append(query_base)
 
-                else:  # everything in between the sandwich
-                    new_aa = translated_stripped_seq[position - 1] # index starts at 0
-            
-            in_dict["insertion"] = f"{beginning_flank}{beginning_pos}_{end_flank}{middle_pos}ins{in_slice}"
+            # updating frame_offset depending on which sequence consumes a real nucleotide in the current alignment column (as we walk along them in tandem)
+            if subject_base == "-" and query_base != "-":
+                frame_offset = (frame_offset + 1) % 3  # (0 + 1) % 3 == 1 ; our query is one nucleotide ahead
+            elif query_base == "-" and subject_base != "-":
+                frame_offset = (frame_offset - 1) % 3  # (0 - 1) % 3 == 2 ; our query is one nucleotide behind
 
-            return in_dict
-        else:
-            del_dict = {}
-            for i, (position, codon) in enumerate(unpacked_indel):
-                if i == 1:
-                    affected_codon = split_ref[position]  # looking at a list index position here
-                    original_aa = str(Seq(affected_codon).translate(table=11))
+            if subject_base == "-":  # if we hit an insertion, do not move the CARD reference coordinate (there's nothing there)
+                continue
 
-                    first_aa = original_aa  # deletions don't have flanks--the first aa reported is where the deletion starts (index 1, not 0)
-                    first_pos = position + 1  # looking at biological position here
+            consumed_reference_index = reference_index  # otherwise, log which CARD base was consumed and advance to the next CARD base
+            reference_index += 1
 
-                    del_dict["first_aa"] = first_aa
-                    del_dict["first_pos"] = first_pos 
-                if i == len(unpacked_indel) - 2:
-                    affected_codon = split_ref[position]
-                    original_aa = str(Seq(affected_codon).translate(table=11))
+            if(
+                current_codon is None
+                or consumed_reference_index != current_codon["reference_start"] + 2  # if we haven't hit the final base of our codon, go to the next alignment column and run it back
+                ):
+                continue
 
-                    last_aa = original_aa
-                    last_pos = position + 1
-                    del_dict["last_aa"] = last_aa
-                    del_dict["last_pos"] = last_pos
-                if i != 1 and i != len(unpacked_indel) - 2: 
-                    del_codons += translated_stripped_seq[position - 1]
-            
-            del_dict["deletion"] = f"{first_aa}{first_pos}_{last_aa}{last_pos}del{del_codons}"
+            codon_start = current_codon["reference_start"]
+            query_codon = "".join(current_codon["query_bases"])
+            clean_mapping = (  # defining what is a "clean map" >> all three must be true.
+                current_codon["clean_mapping"]
+                and frame_offset == 0  # are we in frame at the end of it all?
+                and len(query_codon) == 3
+            )
 
-            return del_dict
+            current_codon = None
+
+            if not clean_mapping or query_codon not in stop_codons:
+                continue
+
+            reference_codon = card_dna_ref[codon_start:codon_start + 3]
+            if len(reference_codon) != 3:
+                continue
+
+            reference_aa = str(Seq(reference_codon).translate(table=11))
+            if reference_aa == "*":  # if the CARD reference has a stop at this position, a query stop is not a de novo nonsense mutation; also does not report the reference's terminal STOP
+                continue
+
+            yield{
+                "reference_nucl_index": codon_start,
+                "aa_position": (codon_start // 3) + 1,
+                "reference_codon": reference_codon,
+                "query_codon": query_codon,
+                "original_aa": reference_aa,
+                "mutation":(f"{reference_aa}{(codon_start // 3) + 1}Ter")
+            }
 
     def consolidate_mutations(self, input_type, hit_id, model_type, srv=None, other_mutations=None, phm=None, hsp_bitscore=None, pass_val=None):
         """
@@ -913,12 +936,12 @@ class MutationsModule(BaseModel):
                                 if passes_eval and has_curated_mutation:  # Strict alignments
                                     merged_mutations["query_def"] += hit_id
                                     return [merged_mutations]
-                                elif passes_eval and has_denovo_mutation:  # Strict alignments w de novo mutations
-                                    merged_mutations["query_def"] += hit_id
-                                    return [merged_mutations]
-                                elif not passes_eval and has_denovo_mutation:  # Loose alignments w de novo mutations
-                                    merged_mutations["query_def"] += hit_id
-                                    return [merged_mutations]
+                                # elif passes_eval and has_denovo_mutation:  # Strict alignments w de novo mutations
+                                #     merged_mutations["query_def"] += hit_id
+                                #     return [merged_mutations]
+                                # elif not passes_eval and has_denovo_mutation:  # Loose alignments w de novo mutations
+                                #     merged_mutations["query_def"] += hit_id
+                                #     return [merged_mutations]
                                 elif not passes_eval and has_curated_mutation:  # Loose alignments
                                     merged_mutations["query_def"] += hit_id
                                     return [merged_mutations]
@@ -934,12 +957,12 @@ class MutationsModule(BaseModel):
                                 if passes_eval and has_curated_mutation:  # Strict alignments
                                     merged_mutations["query_def"] += hit_id
                                     return [merged_mutations]
-                                elif passes_eval and has_denovo_mutation:  # Strict alignments w de novo mutations
-                                    merged_mutations["query_def"] += hit_id
-                                    return [merged_mutations]
-                                elif not passes_eval and has_denovo_mutation:  # Loose alignments w de novo mutations
-                                    merged_mutations["query_def"] += hit_id
-                                    return [merged_mutations]
+                                # elif passes_eval and has_denovo_mutation:  # Strict alignments w de novo mutations
+                                #     merged_mutations["query_def"] += hit_id
+                                #     return [merged_mutations]
+                                # elif not passes_eval and has_denovo_mutation:  # Loose alignments w de novo mutations
+                                #     merged_mutations["query_def"] += hit_id
+                                #     return [merged_mutations]
                                 elif not passes_eval and has_curated_mutation:  # Loose alignments
                                     merged_mutations["query_def"] += hit_id
                                     return [merged_mutations]
