@@ -272,8 +272,13 @@ class Variant(MutationsModule):
 						temp = ""
 
 						evalue_snp = self.extract_nth_bar(align_title, 2)
+
+						if evalue_snp in ("None", "", "n/a"):
+							snpl = []
+						else:
+							snpl = evalue_snp.split(",")
+
 						# evalue_snp_dec = evalue_snp
-						snpl = evalue_snp.split(',')
 
 						for each_snp in snpl:
 							position = int(

@@ -139,8 +139,29 @@ class Database(object):
 									"Please let the CARD Admins know! Email: card@mcmaster.ca")
 							else:
 								try:
-									snpList = [j[i]['model_param']['snp']['param_value'][k]
-											   for k in j[i]['model_param']['snp']['param_value']]
+									snpList = []
+
+									snp_values = (
+										j[i]['model_param'].get("snp", {})
+										.get("param_value", {})
+										)
+									snpList.extend(snp_values.values())
+
+									mrv_values = (
+										j[i]["model_param"].get("40330", {})
+										.get("param_value", {})
+										)
+
+									for multiple_resistance_variants in mrv_values.values():
+										snpList.extend(
+											mutation.strip()
+											for mutation in multiple_resistance_variants.split(",")
+											if mutation.strip()
+											)
+
+									# preserve order + dedupe
+									snpList = list(dict.fromkeys(snpList))
+
 								except Exception as e:
 									logger.warning("No snp for model (%s, %s). RGI will omit this model and keep running."
 												   % (j[i]['model_id'], j[i]['model_name']))
@@ -153,7 +174,7 @@ class Database(object):
 								for seq in j[i]['model_sequences']['sequence']:
 									variant_db = ('>%s_%s | model_type_id: 40293 | pass_bit_score: %s | SNP: None | %s\n' \
 									% (i, seq, pass_bit_score, j[i]['ARO_name']))
-									if "snp" in j[i]["model_param"]:
+									if snpList:
 										snp_out = "SNP: %s" % (','.join(snpList))
 										variant_db = variant_db.replace("SNP: None", snp_out)
 
@@ -176,8 +197,29 @@ class Database(object):
 									"Please let the CARD Admins know! Email: card@mcmaster.ca")
 							else:
 								try:
-									snpList = [j[i]['model_param']['snp']['param_value'][k]
-											   for k in j[i]['model_param']['snp']['param_value']]
+									snpList = []
+
+									snp_values = (
+										j[i]['model_param'].get("snp", {})
+										.get("param_value", {})
+										)
+									snpList.extend(snp_values.values())
+
+									mrv_values = (
+										j[i]["model_param"].get("40330", {})
+										.get("param_value", {})
+										)
+
+									for multiple_resistance_variants in mrv_values.values():
+										snpList.extend(
+											mutation.strip()
+											for mutation in multiple_resistance_variants.split(",")
+											if mutation.strip()
+											)
+
+									# preserve order + dedupe
+									snpList = list(dict.fromkeys(snpList))
+
 								except Exception as e:
 									logger.warning("No snp for model (%s, %s). RGI will omit this model and keep running."
 												   % (j[i]['model_id'], j[i]['model_name']))
@@ -300,16 +342,37 @@ class Database(object):
 								logger.info(
 									"Please let the CARD Admins know! Email: card@mcmaster.ca")
 							else:
-								if "snp" in j[i]['model_param'].keys():
-									snpList = [j[i]['model_param']['snp']['param_value'][k]
-											   for k in j[i]['model_param']['snp']['param_value']]
-									for s in snpList:
-										if "16S" in j[i]['ARO_name']:
-											if s not in snpList_16s:
-												snpList_16s.append(s)
-										if "23S" in j[i]['ARO_name']:
-											if s not in snpList_23s:
-												snpList_23s.append(s)
+								snpList = []
+
+								snp_values = (
+									j[i]['model_param'].get("snp", {})
+									.get("param_value", {})
+									)
+								snpList.extend(snp_values.values())
+
+								mrv_values = (
+									j[i]["model_param"].get("40330", {})
+									.get("param_value", {})
+									)
+
+								for multiple_resistance_variants in mrv_values.values():
+									snpList.extend(
+										mutation.strip()
+										for mutation in multiple_resistance_variants.split(",")
+										if mutation.strip()
+										)
+
+								# preserve order + dedupe
+								snpList = list(dict.fromkeys(snpList))
+
+								for s in snpList:
+									if "16S" in j[i]['ARO_name']:
+										if s not in snpList_16s:
+											snpList_16s.append(s)
+									if "23S" in j[i]['ARO_name']:
+										if s not in snpList_23s:
+											snpList_23s.append(s)
+
 								if snpList:
 									for seq in j[i]['model_sequences']['sequence']:
 										if j[i]['model_sequences']['sequence'][seq]['dna_sequence']['strand'] == "-":

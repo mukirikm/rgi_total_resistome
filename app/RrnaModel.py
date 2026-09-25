@@ -89,10 +89,13 @@ class Rrna(MutationsModule):
 
                         init = 0
                         evalue_snp = orf_info_str[3].split(":")[1].strip()
-                        snpl = []
                         snp_dict_list = []
                         temp = ""
-                        snpl = evalue_snp.split(',')
+
+                        if evalue_snp in ("None", "", "n/a"):
+                            snpl = []
+                        else:
+                            snpl = evalue_snp.split(",")
 
                         for each_snp in snpl:
                             snp_dict_list.append(

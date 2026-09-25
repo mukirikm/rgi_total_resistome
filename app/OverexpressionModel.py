@@ -233,9 +233,14 @@ class Overexpression(MutationsModule):
 												  1: modelDescrpt.index(' ')]
 
 						init = 0
-						snp = self.extract_nth_bar(alignTitle, 2)
-						snp = snp.split(',')
-						snpL = []
+						snp_header = self.extract_nth_bar(alignTitle, 2)
+
+						if snp_header in ("None", "", "n/a"):
+							snp = []
+						else:
+							snp = snp_header.split(",")
+
+						# snpL = []
 						snpdictlist = []
 						temp = ""
 
