@@ -207,26 +207,32 @@ class ConvertJsonToTSV(object):
                                                          ]["orf_prot_sequence"]
 
                             if len(rgi_data[hsp]) != 0:
-                                if rgi_data[hsp][hit]["model_type_id"] == 41091: # protein overexpression model
+                                if rgi_data[hsp][ordered[0]]["model_type_id"] == 41091: # protein overexpression model
                                     if "snp" in rgi_data[hsp][ordered[0]]:
                                         for x in rgi_data[hsp].values():
                                             if "snp" in x.keys() and x["snp"] != "n/a":
                                                 if x['model_id'] == rgi_data[hsp][ordered[0]]['model_id']:
                                                     temp2.append(
                                                         x["snp"]["original"] + str(x["snp"]["position"]) + x["snp"]["change"])
-                                                    best_snps = ', '.join(
-                                                        temp2)
+                                                    # best_snps = ', '.join(
+                                                    #     temp2)
                                                 else:
                                                     temp3.append(
                                                         x["snp"]["original"] + str(x["snp"]["position"]) + x["snp"]["change"] + ":" + x['model_id'])
-                                                    other_snps = ', '.join(
-                                                        temp3)
-                                            elif "snp" in x.keys() and x["snp"] == "n/a":
-                                                best_snps = "n/a"
-                                                other_snps = "n/a"
-                                    else:
-                                        best_snps = "n/a"
-                                        other_snps = "n/a"
+                                                    # other_snps = ', '.join(
+                                                    #     temp3)
+                                    #         elif "snp" in x.keys() and x["snp"] == "n/a":
+                                    #             best_snps = "n/a"
+                                    #             other_snps = "n/a"
+                                    # else:
+                                    #     best_snps = "n/a"
+                                    #     other_snps = "n/a"
+
+                                    temp2 = list(OrderedDict.fromkeys(temp2))
+                                    temp3 = list(OrderedDict.fromkeys(temp3))
+
+                                    best_snps = ", ".join(temp2) if temp2 else "n/a"
+                                    other_snps = ", ".join(temp3) if temp3 else "n/a"
 
                                     ## all other mutations
                                     curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
@@ -234,36 +240,43 @@ class ConvertJsonToTSV(object):
                                     de_novo_mutations = rgi_data[hsp][ordered[0]].get("de_novo_mutations", "n/a")
                                     de_novo_types = rgi_data[hsp][ordered[0]].get("de_novo_mutation_types", "n/a")
                        
-                                elif rgi_data[hsp][hit]["model_type_id"] in [40293, 40295]: # protein variant & rRNA gene variant models
+                                elif rgi_data[hsp][ordered[0]]["model_type_id"] in [40293, 40295]: # protein variant & rRNA gene variant models
                                     if "snp" in rgi_data[hsp][ordered[0]]:
                                         for x in rgi_data[hsp].values():
                                             if "snp" in x.keys() and x["snp"] != "n/a":
                                                 if x['model_id'] == rgi_data[hsp][ordered[0]]['model_id']:
                                                     temp2.append(
                                                         x["snp"]["original"] + str(x["snp"]["position"]) + x["snp"]["change"])
-                                                    best_snps = ', '.join(
-                                                        temp2)
+                                                    # best_snps = ', '.join(
+                                                    #     temp2)
                                                 else:
                                                     temp3.append(
                                                         x["snp"]["original"] + str(x["snp"]["position"]) + x["snp"]["change"] + ":" + x['model_id'])
-                                                    other_snps = ', '.join(
-                                                        temp3)
+                                                    # other_snps = ', '.join(
+                                                    #     temp3)
                                                     
-                                            # add unique snps
-                                            temp2 = list(
-                                                OrderedDict.fromkeys(temp2))
-                                            best_snps = ', '.join(temp2)
-                                            temp3 = list(
-                                                OrderedDict.fromkeys(temp3))
-                                            other_snps = ', '.join(temp3)
+                                            # # add unique snps
+                                            # temp2 = list(
+                                            #     OrderedDict.fromkeys(temp2))
+                                            # best_snps = ', '.join(temp2)
+                                            # temp3 = list(
+                                            #     OrderedDict.fromkeys(temp3))
+                                            # other_snps = ', '.join(temp3)
 
-                                            if "snp" in x.keys() and x["snp"] == "n/a":
-                                                best_snps = "n/a"
-                                                other_snps = "n/a"
+                                    # add unique SNPs
+                                    temp2 = list(OrderedDict.fromkeys(temp2))
+                                    temp3 = list(OrderedDict.fromkeys(temp3))
 
-                                    else:
-                                        best_snps = "n/a"
-                                        other_snps = "n/a"
+                                    best_snps = ", ".join(temp2) if temp2 else "n/a"
+                                    other_snps = ", ".join(temp3) if temp3 else "n/a"
+
+                                            # if "snp" in x.keys() and x["snp"] == "n/a":
+                                            #     best_snps = "n/a"
+                                            #     other_snps = "n/a"
+
+                                    # else:
+                                    #     best_snps = "n/a"
+                                    #     other_snps = "n/a"
                                     
                                     ## all other mutations
                                     curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
@@ -271,7 +284,7 @@ class ConvertJsonToTSV(object):
                                     de_novo_mutations = rgi_data[hsp][ordered[0]].get("de_novo_mutations", "n/a")
                                     de_novo_types = rgi_data[hsp][ordered[0]].get("de_novo_mutation_types", "n/a")
 
-                                elif rgi_data[hsp][hit]["model_type_id"] == 40292: # protein homolog model
+                                elif rgi_data[hsp][ordered[0]]["model_type_id"] == 40292: # protein homolog model
                                     best_snps = "n/a"
                                     other_snps = "n/a"
 
@@ -281,10 +294,10 @@ class ConvertJsonToTSV(object):
                                     curated_mutations = "n/a"
                                     curated_types = "n/a"
 
-                                if not other_snps:
-                                    other_snps = "n/a"
+                                # if not other_snps:
+                                #     other_snps = "n/a"
 
-                                if rgi_data[hsp][hit]["model_type_id"] in [40295]: # rRNA gene variant model
+                                if rgi_data[hsp][ordered[0]]["model_type_id"] in [40295]: # rRNA gene variant model
                                     percentage_length_reference_sequence = format((abs(orf_end - orf_start) /
                                                                                    len(rgi_data[hsp][ordered[0]]["dna_sequence_from_broadstreet"]))*100, '.2f')
                                 else:
@@ -355,61 +368,73 @@ class ConvertJsonToTSV(object):
                                 curated_mutations = "n/a"
                                 curated_types = "n/a"
 
-                                if rgi_data[hsp][hit]["model_type_id"] == 41091: # protein overexpression model
+                                if rgi_data[hsp][ordered[0]]["model_type_id"] == 41091: # protein overexpression model
                                     if "snp" in rgi_data[hsp][ordered[0]]:
                                         for x in rgi_data[hsp].values():
                                             if "snp" in x.keys() and x["snp"] != "n/a":
                                                 if x['model_id'] == rgi_data[hsp][ordered[0]]['model_id']:
                                                     temp2.append(
                                                         x["snp"]["original"] + str(x["snp"]["position"]) + x["snp"]["change"])
-                                                    best_snps = ', '.join(
-                                                        temp2)
+                                                    # best_snps = ', '.join(
+                                                    #     temp2)
                                                 else:
                                                     temp3.append(
                                                         x["snp"]["original"] + str(x["snp"]["position"]) + x["snp"]["change"] + ":" + x['model_id'])
-                                                    other_snps = ', '.join(
-                                                        temp3)
-                                            elif "snp" in x.keys() and x["snp"] == "n/a":
-                                                best_snps = "n/a"
-                                                other_snps = "n/a"
-                                    else:
-                                        best_snps = "n/a"
-                                        other_snps = "n/a"
+                                                    # other_snps = ', '.join(
+                                                    #     temp3)
+                                    #         elif "snp" in x.keys() and x["snp"] == "n/a":
+                                    #             best_snps = "n/a"
+                                    #             other_snps = "n/a"
+                                    # else:
+                                    #     best_snps = "n/a"
+                                    #     other_snps = "n/a"
 
                                     # ## all other mutations
                                     # curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
                                     # curated_types = rgi_data[hsp][ordered[0]].get("curated_mutation_types", "n/a")
                                     # de_novo_mutations = rgi_data[hsp][ordered[0]].get("de_novo_mutations", "n/a")
                                     # de_novo_types = rgi_data[hsp][ordered[0]].get("de_novo_mutation_types", "n/a")
+
+                                    temp2 = list(OrderedDict.fromkeys(temp2))
+                                    temp3 = list(OrderedDict.fromkeys(temp3))
+
+                                    best_snps = ", ".join(temp2) if temp2 else "n/a"
+                                    other_snps = ", ".join(temp3) if temp3 else "n/a"
                                                     
-                                elif rgi_data[hsp][hit]["model_type_id"] == 40293: # protein variant model
+                                elif rgi_data[hsp][ordered[0]]["model_type_id"] == 40293: # protein variant model
                                     if "snp" in rgi_data[hsp][ordered[0]]:
                                         for x in rgi_data[hsp].values():
                                             if "snp" in x.keys() and x["snp"] != "n/a":
                                                 if x['model_id'] == rgi_data[hsp][ordered[0]]['model_id']:
                                                     temp2.append(
                                                         x["snp"]["original"] + str(x["snp"]["position"]) + x["snp"]["change"])
-                                                    best_snps = ', '.join(
-                                                        temp2)
+                                                    # best_snps = ', '.join(
+                                                    #     temp2)
                                                 else:
                                                     temp3.append(
                                                         x["snp"]["original"] + str(x["snp"]["position"]) + x["snp"]["change"] + ":" + x['model_id'])
-                                                    other_snps = ', '.join(
-                                                        temp3)
-                                            elif "snp" in x.keys() and x["snp"] == "n/a":
-                                                best_snps = "n/a"
-                                                other_snps = "n/a"
-                                    else:
-                                        best_snps = "n/a"
-                                        other_snps = "n/a"
+                                                    # other_snps = ', '.join(
+                                                    #     temp3)
+                                    #         elif "snp" in x.keys() and x["snp"] == "n/a":
+                                    #             best_snps = "n/a"
+                                    #             other_snps = "n/a"
+                                    # else:
+                                    #     best_snps = "n/a"
+                                    #     other_snps = "n/a"
                                                                                             
                                     # ## all other mutations
                                     # curated_mutations = rgi_data[hsp][ordered[0]].get("curated_mutations", "n/a")
                                     # curated_types = rgi_data[hsp][ordered[0]].get("curated_mutation_types", "n/a")
                                     # de_novo_mutations = rgi_data[hsp][ordered[0]].get("de_novo_mutations", "n/a")
                                     # de_novo_types = rgi_data[hsp][ordered[0]].get("de_novo_mutation_types", "n/a")
+
+                                    temp2 = list(OrderedDict.fromkeys(temp2))
+                                    temp3 = list(OrderedDict.fromkeys(temp3))
+
+                                    best_snps = ", ".join(temp2) if temp2 else "n/a"
+                                    other_snps = ", ".join(temp3) if temp3 else "n/a"
                                                        
-                                elif rgi_data[hsp][hit]["model_type_id"] == 40292: # protein homolog model
+                                elif rgi_data[hsp][ordered[0]]["model_type_id"] == 40292: # protein homolog model
                                     best_snps = "n/a"
                                     other_snps = "n/a"
 
