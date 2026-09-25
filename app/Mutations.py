@@ -24,6 +24,8 @@ class MutationsModule(BaseModel):
         """         
         return "Mutation({}".format(self.__dict__)
 
+    ## main mutation detection
+
     def single_resistance_variant(self, detection_mode,  snp_dict_list, hsp_query, 
                                   hsp_sbjct_start, hsp_sbjct, orf_info, query_def,
                                   pred_genes_dict_prot=None, sub_prot_dict=None, hsp_query_start=None, 
@@ -484,6 +486,8 @@ class MutationsModule(BaseModel):
         
         return ns_result_prelim
 
+    # gap event helpers
+
     def gap_events(self, hsp_query, hsp_sbjct, hsp_sbjct_start):
         """
         Tracks non-triplet gap events (not full codon indels) relative to CARD reference nucleotide coordinates
@@ -746,7 +750,9 @@ class MutationsModule(BaseModel):
                 return candidate, True
 
         return event, False
-    
+
+    # frameshift termination and nonsense mutation helpers
+
     def termination(self, translated_seq, aa_pos):
         aa_count = 0
 
@@ -849,6 +855,8 @@ class MutationsModule(BaseModel):
                 "mutation":(f"{reference_aa}{(codon_start // 3) + 1}Ter")
             }
 
+    # result consolidation
+
     def consolidate_mutations(self, input_type, hit_id, model_type, srv=None, other_mutations=None, phm=None, hsp_bitscore=None, pass_val=None):
         """
         Consolidates the results from all mutation functions and passes the output back into RGI's detection modules (PHM, PVM, POM, RGV).
@@ -936,12 +944,12 @@ class MutationsModule(BaseModel):
                                 if passes_eval and has_curated_mutation:  # Strict alignments
                                     merged_mutations["query_def"] += hit_id
                                     return [merged_mutations]
-                                # elif passes_eval and has_denovo_mutation:  # Strict alignments w de novo mutations
-                                #     merged_mutations["query_def"] += hit_id
-                                #     return [merged_mutations]
-                                # elif not passes_eval and has_denovo_mutation:  # Loose alignments w de novo mutations
-                                #     merged_mutations["query_def"] += hit_id
-                                #     return [merged_mutations]
+                                elif passes_eval and has_denovo_mutation:  # Strict alignments w de novo mutations
+                                    merged_mutations["query_def"] += hit_id
+                                    return [merged_mutations]
+                                elif not passes_eval and has_denovo_mutation:  # Loose alignments w de novo mutations
+                                    merged_mutations["query_def"] += hit_id
+                                    return [merged_mutations]
                                 elif not passes_eval and has_curated_mutation:  # Loose alignments
                                     merged_mutations["query_def"] += hit_id
                                     return [merged_mutations]
@@ -957,12 +965,12 @@ class MutationsModule(BaseModel):
                                 if passes_eval and has_curated_mutation:  # Strict alignments
                                     merged_mutations["query_def"] += hit_id
                                     return [merged_mutations]
-                                # elif passes_eval and has_denovo_mutation:  # Strict alignments w de novo mutations
-                                #     merged_mutations["query_def"] += hit_id
-                                #     return [merged_mutations]
-                                # elif not passes_eval and has_denovo_mutation:  # Loose alignments w de novo mutations
-                                #     merged_mutations["query_def"] += hit_id
-                                #     return [merged_mutations]
+                                elif passes_eval and has_denovo_mutation:  # Strict alignments w de novo mutations
+                                    merged_mutations["query_def"] += hit_id
+                                    return [merged_mutations]
+                                elif not passes_eval and has_denovo_mutation:  # Loose alignments w de novo mutations
+                                    merged_mutations["query_def"] += hit_id
+                                    return [merged_mutations]
                                 elif not passes_eval and has_curated_mutation:  # Loose alignments
                                     merged_mutations["query_def"] += hit_id
                                     return [merged_mutations]
