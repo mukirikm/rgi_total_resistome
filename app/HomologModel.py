@@ -1,6 +1,7 @@
 from app.Mutations import MutationsModule
 from app.settings import *
 from Bio.Blast import NCBIXML
+from Bio.Seq import Seq
 import traceback
 
 class Homolog(MutationsModule):
@@ -81,9 +82,19 @@ class Homolog(MutationsModule):
                                     for hsp in alignment.hsps:
                                         card_dna_ref = json_data[modelID]["model_sequences"]["sequence"][seqinModel]["dna_sequence"]["sequence"]
                                         
-                                        fs_out = self.frameshift(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, hsp_sbjct_start=hsp.sbjct_start)
-                                        indel_out = self.indel(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, hsp_sbjct_start=hsp.sbjct_start)
-                                        ns_out = self.nonsense(hsp.query, hsp.sbjct, card_dna_ref, bnquery_def, hsp.sbjct_start)
+                                        # orient the paired nucleotide alignment along the forward CARD reference
+                                        mutation_query = hsp.query
+                                        mutation_subject = hsp.sbjct
+                                        mutation_subject_start = hsp.sbjct_start
+
+                                        if hsp.sbjct_start > hsp.sbjct_end:
+                                            mutation_query = str(Seq(mutation_query).reverse_complement())
+                                            mutation_subject = str(Seq(mutation_subject).reverse_complement())
+                                            mutation_subject_start = hsp.sbjct_end
+
+                                        fs_out = self.frameshift(mutation_query, mutation_subject, card_dna_ref, bnquery_def, hsp_sbjct_start=mutation_subject_start)
+                                        indel_out = self.indel(mutation_query, mutation_subject, card_dna_ref, bnquery_def, hsp_sbjct_start=mutation_subject_start)
+                                        ns_out = self.nonsense(mutation_query, mutation_subject, card_dna_ref, bnquery_def, mutation_subject_start)
 
                                         if fs_out is not None:
                                             fs_out["mutation_model_id"] = modelID
