@@ -679,7 +679,7 @@ class MutationsModule(BaseModel):
 
     def indel_event_to_hgvs(self, event, card_dna_ref):
         """
-        Returns an indel as an HGVS-like string for a codon-aligned events.
+        Returns an indel as an HGVS-like string for codon-aligned events.
         
         ** Code optimized with Codex **
         """
@@ -754,6 +754,9 @@ class MutationsModule(BaseModel):
     # frameshift termination and nonsense mutation helpers
 
     def termination(self, translated_seq, aa_pos):
+        """
+        Finds the nearest premature STOP codon created by the frameshift found.
+        """
         aa_count = 0
 
         ## locating the frameshift in the translated protein (entire seq. chunk + position of termination)
@@ -767,7 +770,7 @@ class MutationsModule(BaseModel):
 
     def nonsense_events(self, hsp_query, hsp_sbjct, card_dna_ref, hsp_sbjct_start=1):
         """
-        Yields directly mappable nonsense substitutions.
+        Yields directly mappable nonsense mutations.
         Does not handle STOPs inside frameshifted/gap-containing codons.
 
         ** Code optimized with Codex **
