@@ -241,7 +241,7 @@ class MutationsModule(BaseModel):
                 continue
 
             # print(f"gap event\n{raw_event}\n")
-            event, is_curated = self.gap_resolver(raw_event, card_dna_ref, fs_dict_list)
+            event, is_curated = self.frameshift_resolver(raw_event, card_dna_ref, fs_dict_list)
 
             aa_pos = (event["reference_nucl_index"] // 3) + 1  # converting our zero-based nucleotide start position to one-based amino acid space
             codon_start = (aa_pos - 1) * 3  # zero-based
@@ -647,7 +647,7 @@ class MutationsModule(BaseModel):
 
         return candidates      
 
-    def gap_resolver(self, event, card_dna_ref, fs_dict_list):
+    def frameshift_resolver(self, event, card_dna_ref, fs_dict_list):
         """
         Looks at all gap event candidates, sees if there's a match to a CARD curated frameshift, and chooses the curated option if possible.
         
