@@ -353,6 +353,8 @@ class Variant(MutationsModule):
 											sinsidedict["orf_end"] = "n/a"
 											sinsidedict["orf_from"] = "n/a"
 											
+										if mm_record.get("mutation_equivalents"):
+											sinsidedict["mutation_equivalents"] = mm_record["mutation_equivalents"]
 										if curated_mutations is not None:
 											sinsidedict["curated_mutations"] = '; '.join(', '.join(mutations) for mutations in curated_mutations.values())
 											sinsidedict["curated_mutation_types"] = '; '.join(curated_mutations.keys())
@@ -467,6 +469,8 @@ class Variant(MutationsModule):
 											slinsidedict["orf_end"] = "n/a"
 											slinsidedict["orf_from"] = "n/a"
 											
+										if mm_record.get("mutation_equivalents"):
+											slinsidedict["mutation_equivalents"] = mm_record["mutation_equivalents"]
 										if curated_mutations is not None:
 											slinsidedict["curated_mutations"] = '; '.join(', '.join(mutations) for mutations in curated_mutations.values())
 											slinsidedict["curated_mutation_types"] = '; '.join(curated_mutations.keys())

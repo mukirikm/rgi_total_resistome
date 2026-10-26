@@ -21,6 +21,33 @@ class ConvertJsonToTSV(object):
         """Returns ConvertJsonToTSV class full object."""
         return "ConvertJsonToTSV({}".format(self.__dict__)
 
+    @staticmethod
+    def format_mutation_equivalents(value, equivalents):
+        """
+        Places alternative mutation labels beside their primary mutations.
+        This formatting is only for the TSV.
+        """
+
+        # if there are no equivalent mutations, only return the original/primary mutation
+        if not value or value == "n/a" or not equivalents:
+            return value
+
+        def format_label(label):
+            alternatives = list(dict.fromkeys(
+                alternative for alternative in equivalents.get(label, []) if alternative != label)
+                )
+            
+            if alternatives:
+                return "{} (equiv: {})".format(label, " | ".join(alternatives))
+            
+            return label
+
+        # if there are equiv. mutations, format them correctly along with their primary mutation
+        return "; ".join(
+            ", ".join(format_label(label) for label in group.split(", "))
+            for group in value.split("; ")
+        )
+
     def parse_jsons(self, part, data):
         if data.keys():
             for k1, v1 in part.items():
@@ -294,6 +321,14 @@ class ConvertJsonToTSV(object):
                                     curated_mutations = "n/a"
                                     curated_types = "n/a"
 
+                                equivalents = rgi_data[hsp][ordered[0]].get("mutation_equivalents", {})
+                                curated_mutations = self.format_mutation_equivalents(
+                                    curated_mutations, equivalents.get("curated", {})
+                                    )
+                                de_novo_mutations = self.format_mutation_equivalents(
+                                    de_novo_mutations, equivalents.get("de_novo", {})
+                                    )
+
                                 # if not other_snps:
                                 #     other_snps = "n/a"
 
@@ -521,10 +556,10 @@ class ConvertJsonToTSV(object):
         h["Percentage Length of Reference Sequence"] = "Percentage Length of Reference Sequence"
         h["ID"] = "HSP identifier (internal to RGI)"
         h["Model_ID"] = "CARD detection model id"
-        h["Curated_Mutations"] = "CARD-curated mutations (not SNVs) observed in the ARO term of top hit in CARD (if applicable)"
-        h["Curated_Mutation_Types"] = "TBD"
-        h["De_novo_Mutations"] = "Newly discovered mutations (not SNVs; not curated in CARD) observed in the ARO term of top hit in CARD (if applicable"
-        h["De_novo_Mutation_Types"] = "TBD"
+        h["Curated_Mutations"] = "CARD-curated mutations (not SNVs) observed in the ARO term of top hit in CARD; equivalent indel descriptions appear as (equiv: label | label)"
+        h["Curated_Mutation_Types"] = "Corresponding mutation type labels for the groups of mutations listed in 'Curated_Mutations', e.g., indel; frameshift; nonense"
+        h["De_novo_Mutations"] = "Newly discovered mutations (not SNVs; not curated in CARD) observed in the ARO term of top hit in CARD; equivalent indel descriptions appear as (equiv: label | label)"
+        h["De_novo_Mutation_Types"] = "Corresponding mutation type labels for the groups of mutations listed in 'De_novo_Mutations', e.g., indel; frameshift; nonense"
 
         print("\n")
         print("COLUMN", "\t\t\t", "HELP_MESSAGE")

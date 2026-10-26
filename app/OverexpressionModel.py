@@ -63,6 +63,7 @@ class Overexpression(MutationsModule):
 
 					for blastn_record in blastn_records:
 						bnquery_def = blastn_record.query
+						# print(bnquery_def)
 						if blastn_record.alignments:
 							for alignment in blastn_record.alignments:	
 								alignTitle = alignment.title
@@ -472,6 +473,8 @@ class Overexpression(MutationsModule):
 												"model_sequences"]["sequence"][seqinModel]["dna_sequence"]["sequence"]
 											
 											if has_other_mutations:
+												if mm_record.get("mutation_equivalents"):
+													sinsidedict["mutation_equivalents"] = mm_record["mutation_equivalents"]
 												sinsidedict["curated_mutations"] = '; '.join(', '.join(mutations) for mutations in curated_mutations.values()) if curated_mutations else "n/a"
 												sinsidedict["curated_mutation_types"] = '; '.join(curated_mutations.keys()) if curated_mutations else "n/a"
 												sinsidedict["de_novo_mutations"] = '; '.join(', '.join(mutations) for mutations in de_novo_mutations.values()) if de_novo_mutations else "n/a"
@@ -571,6 +574,8 @@ class Overexpression(MutationsModule):
 												"model_sequences"]["sequence"][seqinModel]["dna_sequence"]["sequence"]
 											
 											if has_other_mutations:
+												if mm_record.get("mutation_equivalents"):
+													insidedict["mutation_equivalents"] = mm_record["mutation_equivalents"]
 												insidedict["curated_mutations"] = '; '.join(', '.join(mutations) for mutations in curated_mutations.values()) if curated_mutations else "n/a"
 												insidedict["curated_mutation_types"] = '; '.join(curated_mutations.keys()) if curated_mutations else "n/a"
 												insidedict["de_novo_mutations"] = '; '.join(', '.join(mutations) for mutations in de_novo_mutations.values()) if de_novo_mutations else "n/a"
@@ -680,6 +685,8 @@ class Overexpression(MutationsModule):
 											"model_sequences"]["sequence"][seqinModel]["dna_sequence"]["sequence"]
 										
 										if has_other_mutations:
+											if mm_record.get("mutation_equivalents"):
+												linsidedict["mutation_equivalents"] = mm_record["mutation_equivalents"]
 											linsidedict["curated_mutations"] = '; '.join(', '.join(mutations) for mutations in curated_mutations.values()) if curated_mutations else "n/a"
 											linsidedict["curated_mutation_types"] = '; '.join(curated_mutations.keys()) if curated_mutations else "n/a"
 											linsidedict["de_novo_mutations"] = '; '.join(', '.join(mutations) for mutations in de_novo_mutations.values()) if de_novo_mutations else "n/a"

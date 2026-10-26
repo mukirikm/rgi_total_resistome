@@ -392,6 +392,8 @@ class Homolog(MutationsModule):
                                         pass
 
                                     if de_novo_mutations:
+                                        if mm_record.get("mutation_equivalents"):
+                                            insidedict["mutation_equivalents"] = mm_record["mutation_equivalents"]
                                         insidedict["de_novo_mutations"] = '; '.join(', '.join(mutations) for mutations in de_novo_mutations.values())
                                         insidedict["de_novo_mutation_types"] = '; '.join(de_novo_mutations.keys())
                                     else:
@@ -486,6 +488,8 @@ class Homolog(MutationsModule):
                                         pass
 
                                     if de_novo_mutations:
+                                        if mm_record.get("mutation_equivalents"):
+                                            linsidedict["mutation_equivalents"] = mm_record["mutation_equivalents"]
                                         linsidedict["de_novo_mutations"] = '; '.join(', '.join(mutations) for mutations in de_novo_mutations.values())
                                         linsidedict["de_novo_mutation_types"] = '; '.join(de_novo_mutations.keys())
                                     else:

@@ -12,7 +12,10 @@ warnings.simplefilter("ignore", BiopythonWarning)
 
 class MutationsModule(BaseModel):
     """
-    Class for mutation searches (SNVs, frameshifts, coSNPs, etc.).
+    Class for mutation searches.
+    Currently checks for: SNVs, frameshifts, full-codon insertions and deletions, and nonsense mutations.
+
+    Excuse all the comments. I hope they help.
     """
 
     def __init__ (self):
@@ -311,13 +314,49 @@ class MutationsModule(BaseModel):
 
         indel_curated_list_reg = []
         indel_denovo_list_reg = []
+        indel_equivalents = {
+            "curated": {}, 
+            "de_novo": {}
+            }
 
         indel_result_prelim = {}
                         
         translated_qry = str(Seq(hsp_query.replace("-", "")).translate(table=11))
         hsp_start_codon = (hsp_sbjct_start - 1) // 3
 
-        for raw_event in self.gap_events(hsp_query, hsp_sbjct, hsp_sbjct_start):
+        raw_events = list(self.gap_events(hsp_query, hsp_sbjct, hsp_sbjct_start))
+
+        has_codon_indel = any(  # for all the raw events for the current query, are any of them not frameshifts? (are they full-codon indels)
+            not event["is_frameshift"]
+            for event in raw_events
+        )
+        
+        if not has_codon_indel:  # if there are no indels in the event list, return None
+            return None
+
+        ###
+        # when checking for equivalent indel positions in stretches of repeated sequence (in the CARD reference), 
+        # we have to make sure that other mutations (i.e., SNVs) aren't hiding in those same positions in
+        # the query sequence! those positions must be blocked and should not be considered for equivalency
+        ###
+        reference_start = hsp_sbjct_start - 1
+        reference_end = reference_start + len(hsp_sbjct.replace("-", ""))
+        mismatch_indices = set()  # we don't care about order and we don't need dupes
+        reference_index = reference_start
+
+        for query_base, subject_base in zip(hsp_query, hsp_sbjct):
+            if subject_base != "-":
+                if query_base != "-" and (
+                    query_base != subject_base
+                    or query_base not in "ACGT"  # if an N slips in for whatever reason
+                ):
+                    mismatch_indices.add(reference_index)
+
+                reference_index += 1
+
+        for event_index, raw_event in enumerate(raw_events):  # keeping the indeces of the gap events allows us to keep
+                                                              # track of how alternative palcements are shifting and what
+                                                              # they're shifting across
 
             # filtering out frameshift gap events (only keeping full-codon indels)
             if raw_event["is_frameshift"] or raw_event["reference_nucl_index"] is None:
@@ -374,6 +413,8 @@ class MutationsModule(BaseModel):
             if qry_aa_index < 0 or qry_aa_index >= len(translated_qry):
                 continue
 
+            indel_reg = None
+
             if event["type"] == "deletion":
                 deleted_nt = card_dna_ref[event_start_index:event_end_index]
                 tr_deleted_nt = str(Seq(deleted_nt).translate(table=11))
@@ -419,6 +460,24 @@ class MutationsModule(BaseModel):
                     else:
                         indel_denovo_list_reg.append(indel_reg)
 
+            # finding alternative placement labels, if appropriate
+            if indel_reg is not None:
+                alternatives = self.indel_equivalent_labels(
+                    raw_event, card_dna_ref, indel_reg,
+                    reference_start=reference_start,
+                    reference_end=reference_end,
+                    other_events=raw_events[:event_index] + raw_events[event_index + 1:],
+                    mismatch_indices=mismatch_indices,
+                    )
+
+                if alternatives:
+                    bucket = "curated" if is_curated else "de_novo"
+                    stored = indel_equivalents[bucket].setdefault(indel_reg, [])
+
+                    for label in alternatives:
+                        if label not in stored:
+                            stored.append(label)
+
         indel_curated_list_reg = list(dict.fromkeys(indel_curated_list_reg))  
         indel_denovo_list_reg = list(dict.fromkeys(indel_denovo_list_reg))
 
@@ -431,6 +490,8 @@ class MutationsModule(BaseModel):
                 indel_result_prelim["mutations"]["curated"] = indel_curated_list_reg
             if indel_denovo_list_reg:
                 indel_result_prelim["mutations"]["de_novo"] = indel_denovo_list_reg
+            if any(indel_equivalents.values()):
+                indel_result_prelim["mutations"]["equivalents"] = indel_equivalents
 
         elif not indel_curated_list_reg and not indel_denovo_list_reg:
                 return None
@@ -499,13 +560,6 @@ class MutationsModule(BaseModel):
 
         reference_index = hsp_sbjct_start - 1 # our subject: the CARD reference (zero-based)
         alignment_index = 0  # our pointer as we go character by character through a sequence string (zero-based)
-
-        # print("\n====================\n"
-        #     f"hsp_sbjct:\n{hsp_sbjct}\n"
-        #     f"hsp_query:\n{hsp_query}\n"
-        #     f"hsp_sbjct_start: {hsp_sbjct_start}\n"
-        #     f"reference_index: {reference_index}\n"
-        # )
 
         while alignment_index < len(hsp_query):  # while we aren't over the total length of our (potentially) gappy query
             query_base = hsp_query[alignment_index]
@@ -730,6 +784,78 @@ class MutationsModule(BaseModel):
 
         return None
 
+    def indel_equivalent_labels(self, event, card_dna_ref, reported_label, reference_start=0, reference_end=None, other_events=(), mismatch_indices=()):
+        """
+        Finds appropriate equivalent labels for one indel (if any).
+        Returns the labels for the caller to attach.
+
+        Equivalents must remain in the supporting HSP and cannot interfere with 
+        other gap events (indels, frameshifts) or a mismatching aligned base.
+
+        ** Code optimized with Codex **
+        """
+        
+        if event["is_frameshift"] or event["reference_nucl_index"] is None:
+            return []
+        
+        if reference_end is None:
+            reference_end = len(card_dna_ref)
+
+        def affected_interval(candidate):
+            start = candidate["reference_nucl_index"]
+            if candidate["type"] == "insertion":
+                return start + 1, start + 1  # insertions occur between reference bases, so the start and end are the same index (e.g., indeces: 6, 6)
+            
+            return start, start + candidate["length"]  # deletions do not (e.g., indeces: 6, 9 (6,7,8) >> 9 is not included)
+
+        original_start, original_end = affected_interval(event)
+        labels = []
+
+        candidates = sorted(  # sorting the candidates by index and sequence (alphabetically)
+            self.equivalent_gap_events(event, card_dna_ref),
+            key=lambda candidate: (candidate["reference_nucl_index"], candidate["sequence"]),
+            )
+        
+        for candidate in candidates:
+            start = candidate["reference_nucl_index"]
+
+            if candidate["type"] == "deletion":
+                end = start + candidate["length"]
+                if start < reference_start or end > reference_end:
+                    continue
+            else:
+                # Insertion labels need both complete flanking CARD codons.
+                if start - 2 < reference_start or start + 4 > reference_end:
+                    continue
+
+            candidate_start, candidate_end = affected_interval(candidate)
+            moved_start = min(original_start, candidate_start)
+            moved_end = max(original_end, candidate_end)
+
+            # if any index of the candidate (query) is a mismatch to the reference, skip it
+            if any(moved_start <= index < moved_end for index in mismatch_indices):
+                continue
+
+            # checking if the equivalent crosses any OTHER gap events in the query
+            if any(
+                (moved_start <= affected_interval(other)[0] <= moved_end)  # checking that the mutation doesn't cross an insertion bounary
+                if other["type"] == "insertion" else
+                (affected_interval(other)[0] < moved_end  # checking that it doesn't interact with the span of a deletion
+                 and affected_interval(other)[1] > moved_start)
+                for other in other_events
+            ):
+                continue
+
+            label = self.indel_event_to_hgvs(candidate, card_dna_ref)
+            if label and label not in labels:
+                labels.append(label)
+
+        # if the primary mutation does not pass the safety guards, do not attach equivalents
+        if reported_label not in labels:
+            return []
+        
+        return [label for label in labels if label != reported_label]  # a mouthful
+
     def indel_resolver(self, event, card_dna_ref, curated_indel_list):
         """
         Looks at all gap event candidates, sees if there's a match to a CARD curated indel, and chooses the curated option if possible.
@@ -871,7 +997,12 @@ class MutationsModule(BaseModel):
             "query_def": "",
             "curated_mutations": {},
             "de_novo_mutations": {}
-        }
+            }
+
+        mutation_equivalents = {
+            "curated": {}, 
+            "de_novo": {}
+            }
 
         if other_mutations is None:
             other_mutations = []
@@ -903,6 +1034,14 @@ class MutationsModule(BaseModel):
                     mutation_id = mutations["query_def"].split()[0]
                     mutation_type = mutations["mutations"]["type"]
 
+                    for bucket in ("curated", "de_novo"):
+                        for label, alternatives in mutations["mutations"].get("equivalents", {}).get(bucket, {}).items():
+                            stored = mutation_equivalents[bucket].setdefault(label, [])
+
+                            for alternative in alternatives:
+                                if alternative != label and alternative not in stored:
+                                    stored.append(alternative)
+
                     # building out our nested dictionary of mutations lists (in subdictionaries...)
                     # we want rich merged output
                     if mutations["mutations"].get("curated"):
@@ -929,6 +1068,9 @@ class MutationsModule(BaseModel):
 
                 if not merged_mutations["de_novo_mutations"]:
                     merged_mutations["de_novo_mutations"] = None
+
+                if any(mutation_equivalents.values()):
+                    merged_mutations["mutation_equivalents"] = mutation_equivalents
 
                 has_curated_mutation = merged_mutations.get("curated_mutations") is not None
                 has_denovo_mutation = merged_mutations.get("de_novo_mutations") is not None
