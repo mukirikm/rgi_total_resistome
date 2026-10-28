@@ -27,8 +27,10 @@ class MutationsModule(BaseModel):
         """         
         return "Mutation({}".format(self.__dict__)
 
-    ## main mutation detection
-
+    # =============================================================================
+    # Main mutation detection
+    # =============================================================================
+    
     def single_resistance_variant(self, detection_mode,  snp_dict_list, hsp_query, 
                                   hsp_sbjct_start, hsp_sbjct, orf_info, query_def,
                                   pred_genes_dict_prot=None, sub_prot_dict=None, hsp_query_start=None, 
@@ -547,7 +549,9 @@ class MutationsModule(BaseModel):
         
         return ns_result_prelim
 
-    # gap event helpers
+    # =============================================================================
+    # Gap event helpers
+    # =============================================================================
 
     def normalize_codon_replacements(self, hsp_query, hsp_sbjct, card_dna_ref, hsp_sbjct_start=1):
         """
@@ -1021,8 +1025,10 @@ class MutationsModule(BaseModel):
 
         return event, False
 
-    # frameshift termination and nonsense mutation helpers
-
+    # =============================================================================
+    # Frameshift termination and nonsense mutation helpers
+    # =============================================================================
+    
     def termination(self, translated_seq, aa_pos):
         """
         Finds the nearest premature STOP codon created by the frameshift found.
@@ -1128,7 +1134,9 @@ class MutationsModule(BaseModel):
                 "mutation":(f"{reference_aa}{(codon_start // 3) + 1}Ter")
             }
 
-    # result consolidation
+    # =============================================================================
+    # Result consolidation
+    # =============================================================================
 
     def consolidate_mutations(self, input_type, hit_id, model_type, srv=None, other_mutations=None, phm=None, hsp_bitscore=None, pass_val=None):
         """
