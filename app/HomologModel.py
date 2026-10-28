@@ -53,6 +53,7 @@ class Homolog(MutationsModule):
         fs_result = []
         indel_result = []
         ns_result = []
+        replacement_contexts = {}
 
         if self.dna_xml_file:
             try:
@@ -61,7 +62,7 @@ class Homolog(MutationsModule):
 
                     for blastn_record in blastn_records:
                         bnquery_def = blastn_record.query
-                        # print(f"query definition: {bnquery_def}")
+                        # print(f"(PHM) query definition: {bnquery_def}")
 
                         if blastn_record.alignments:
                             for alignment in blastn_record.alignments:
@@ -92,9 +93,20 @@ class Homolog(MutationsModule):
                                             mutation_subject = str(Seq(mutation_subject).reverse_complement())
                                             mutation_subject_start = hsp.sbjct_end
 
-                                        fs_out = self.frameshift(mutation_query, mutation_subject, card_dna_ref, bnquery_def, hsp_sbjct_start=mutation_subject_start)
+                                        consequence_query, consequence_subject, replacements = self.normalize_codon_replacements(
+                                            mutation_query, mutation_subject, card_dna_ref, mutation_subject_start)
+                                        
+                                        if replacements:
+                                            key = (bnquery_def.split()[0], modelID, seqinModel)
+                                            stored = replacement_contexts.setdefault(key, [])
+
+                                            for replacement in replacements:
+                                                if replacement not in stored:
+                                                    stored.append(replacement)
+
+                                        fs_out = self.frameshift(consequence_query, consequence_subject, card_dna_ref, bnquery_def, hsp_sbjct_start=mutation_subject_start)
                                         indel_out = self.indel(mutation_query, mutation_subject, card_dna_ref, bnquery_def, hsp_sbjct_start=mutation_subject_start)
-                                        ns_out = self.nonsense(mutation_query, mutation_subject, card_dna_ref, bnquery_def, mutation_subject_start)
+                                        ns_out = self.nonsense(consequence_query, consequence_subject, card_dna_ref, bnquery_def, mutation_subject_start)
 
                                         if fs_out is not None:
                                             fs_out["mutation_model_id"] = modelID
@@ -232,6 +244,11 @@ class Homolog(MutationsModule):
                                     ppinsidedict["type_match"] = "Perfect"
                                     ppinsidedict["ast_source"] = ""
                                     ppinsidedict["model_id"] = modelID
+
+                                    replacements = replacement_contexts.get((query_id, modelID, seqinModel))
+                                    if replacements:
+                                        ppinsidedict["alignment_replacements"] = replacements
+                                        
                                     ppinsidedict["orf_strand"] = self.extract_nth_bar(
                                         orfInfo.decode(), 0)
                                     ppinsidedict["orf_start"] = self.extract_nth_bar(
@@ -329,6 +346,11 @@ class Homolog(MutationsModule):
                                     insidedict["model_type"] = json_data[modelID]["model_type"]
                                     insidedict["model_type_id"] = modelTypeID
                                     insidedict["model_id"] = modelID
+
+                                    replacements = replacement_contexts.get((query_id, modelID, seqinModel))
+                                    if replacements:
+                                        insidedict["alignment_replacements"] = replacements
+
                                     insidedict["pass_evalue"] = pass_evalue
                                     insidedict["pass_bitscore"] = pass_bitscore
                                     insidedict["ARO_accession"] = json_data[modelID]["ARO_accession"]
@@ -427,6 +449,11 @@ class Homolog(MutationsModule):
                                     linsidedict["pass_evalue"] = pass_evalue
                                     linsidedict["pass_bitscore"] = pass_bitscore
                                     linsidedict["model_id"] = modelID
+
+                                    replacements = replacement_contexts.get((query_id, modelID, seqinModel))
+                                    if replacements:
+                                        linsidedict["alignment_replacements"] = replacements
+
                                     linsidedict["ARO_accession"] = json_data[modelID]["ARO_accession"]
                                     linsidedict["ARO_name"] = json_data[modelID]["ARO_name"]
                                     linsidedict["ARO_category"] = json_data[modelID]["ARO_category"]

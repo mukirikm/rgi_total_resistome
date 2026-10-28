@@ -51,6 +51,7 @@ class Variant(MutationsModule):
 		fs_result = []
 		indel_result = []
 		ns_result = []
+		replacement_contexts = {}
 
 		if self.dna_xml_file:
 			try:
@@ -59,6 +60,8 @@ class Variant(MutationsModule):
 
 					for blastn_record in blastn_records:
 						bnquery_def = blastn_record.query
+						# print(f"(PVM) query definition: {bnquery_def}")
+
 						if blastn_record.alignments:
 							for alignment in blastn_record.alignments:
 
@@ -172,8 +175,19 @@ class Variant(MutationsModule):
 											mutation_subject = str(Seq(mutation_subject).reverse_complement())
 											mutation_subject_start = hsp.sbjct_end
 
+										consequence_query, consequence_subject, replacements = self.normalize_codon_replacements(
+											mutation_query, mutation_subject, card_dna_ref, mutation_subject_start)
+										
+										if replacements:
+											key = (bnquery_def.split()[0], model_id, seq_in_model)
+											stored = replacement_contexts.setdefault(key, [])
+
+											for replacement in replacements:
+												if replacement not in stored:
+													stored.append(replacement)
+
 										fs_out = self.frameshift(
-											mutation_query, mutation_subject, card_dna_ref, bnquery_def, hsp_sbjct_start=mutation_subject_start, fs_dict_list=fs_dict_list,
+											consequence_query, consequence_subject, card_dna_ref, bnquery_def, hsp_sbjct_start=mutation_subject_start, fs_dict_list=fs_dict_list,
 											param_type=fs_param_type["param_type"] if fs_param_type else None)
 
 										indel_out = self.indel(
@@ -181,7 +195,7 @@ class Variant(MutationsModule):
 											curated_del_list=pep_del_dict_list, hsp_sbjct_start=mutation_subject_start)
 
 										ns_out = self.nonsense(
-											mutation_query, mutation_subject, card_dna_ref, bnquery_def, mutation_subject_start, ns_dict_list=ns_dict_list,
+											consequence_query, consequence_subject, card_dna_ref, bnquery_def, mutation_subject_start, ns_dict_list=ns_dict_list,
 											param_type=ns_param_type["param_type"] if ns_param_type else None)
 
 										# fetch mutations from MM
@@ -372,6 +386,11 @@ class Variant(MutationsModule):
 										sinsidedict["model_type"] = json_data[model_id]["model_type"]
 										sinsidedict["model_type_id"] = model_type_id
 										sinsidedict["model_id"] = model_id
+
+										replacements = replacement_contexts.get((query_id, model_id, seq_in_model))
+										if replacements:
+											sinsidedict["alignment_replacements"] = replacements
+											
 										sinsidedict["pass_evalue"] = "n/a"
 										sinsidedict["pass_bitscore"] = pass_value
 										sinsidedict["ARO_accession"] = json_data[model_id]["ARO_accession"]
@@ -490,6 +509,11 @@ class Variant(MutationsModule):
 										slinsidedict["pass_evalue"] = "n/a"
 										slinsidedict["pass_bitscore"] = pass_value
 										slinsidedict["model_id"] = model_id
+
+										replacements = replacement_contexts.get((query_id, model_id, seq_in_model))
+										if replacements:
+											slinsidedict["alignment_replacements"] = replacements
+
 										slinsidedict["ARO_accession"] = json_data[model_id]["ARO_accession"]
 										slinsidedict["ARO_name"] = json_data[model_id]["ARO_name"]
 										slinsidedict["ARO_category"] = json_data[model_id]["ARO_category"]

@@ -15,7 +15,7 @@ class MutationsModule(BaseModel):
     Class for mutation searches.
     Currently checks for: SNVs, frameshifts, full-codon insertions and deletions, and nonsense mutations.
 
-    Excuse all the comments. I hope they help.
+    Excuse all the comments. I hope they're helpful.
     """
 
     def __init__ (self):
@@ -549,6 +549,150 @@ class MutationsModule(BaseModel):
 
     # gap event helpers
 
+    def normalize_codon_replacements(self, hsp_query, hsp_sbjct, card_dna_ref, hsp_sbjct_start=1):
+        """
+        Make a working alignment copy for proven single-codon replacements.
+
+        E.g.,
+            Reference: ATC-
+            Query:     -TCT
+
+            Normalize this codon's alignment:
+
+            Reference: ATC → I
+            Query:     TCT → S
+
+        This prevents false frameshift calls.
+        
+        Evaluation criteria:
+        1) Insertion/deletion lengths must be equal
+        2) Both gaps must belong to one complete codon
+        3) The complete codon window must have aligned A/C/G/T bases immediately before and after it
+        4) The frame must be correct upon entry and exit
+        5) The reference codon must match the CARD reference
+        6) Both codons must contain only A/C/G/T
+        7) The codon window must contain only the selected insertion and deletion, with no additional gap events
+        8) Skip synonymous changes, reference stop codons, and overlapping replacements
+        
+        Returned evidence retains the original gaps. Inputs are already oriented along the forward CARD reference.
+
+        ** Code optimized with Codex **
+        """
+
+        if len(hsp_query) != len(hsp_sbjct):
+            raise ValueError("Aligned query and subject must have equal lengths.")
+        
+        if hsp_sbjct_start < 1:
+            raise ValueError("The reference start must be one-based.")
+        
+        if "-" not in hsp_query or "-" not in hsp_sbjct:
+            return hsp_query, hsp_sbjct, []
+
+        events = list(self.gap_events(hsp_query, hsp_sbjct, hsp_sbjct_start))
+        reference_columns = {}
+        frame_offsets = [0]
+        reference_index = hsp_sbjct_start - 1  # zero-based
+
+        for column, (query_base, subject_base) in enumerate(zip(hsp_query, hsp_sbjct)):
+            if query_base == subject_base == "-":
+                raise ValueError("An alignment column cannot contain two gaps.")  # these errors shouldn't happen in BLAST alignments
+            
+            if subject_base != "-":
+                reference_columns[reference_index] = column
+                reference_index += 1
+
+                change = int(query_base != "-") - int(subject_base != "-")  # FUNKY: a snpashot of the frame offset (query relative to the reference)
+            frame_offsets.append((frame_offsets[-1] + change) % 3)  # the running frame offset based on the last column + the change from the current
+                                                                    # % 3 because we're working with codon indeces: 0, 1, 2
+
+        replacements = []
+
+        for left, right in zip(events, events[1:]):  # walk through the event list comparing A > B, B > C, and so on
+            if {left["type"], right["type"]} != {"insertion", "deletion"}:  # only accept insertion/deletion pairs
+                continue
+         
+            if left["length"] != right["length"] or not left["is_frameshift"]:
+                continue
+
+            deletion, insertion = (left, right) if left["type"] == "deletion" else (right, left)
+
+            if insertion["reference_nucl_index"] is None:
+                continue
+
+            codon_start = (deletion["reference_nucl_index"] // 3) * 3
+            boundary = insertion["reference_nucl_index"] + 1  # converts the insertion anchor's index from the ref base 
+                                                              # before the insertion to the ref base after the insertion
+
+            if not (codon_start <= boundary <= codon_start + 3):
+                continue
+            if deletion["reference_nucl_index"] + deletion["length"] > codon_start + 3:
+                continue
+            if any(index not in reference_columns for index in range(codon_start, codon_start + 3)):  # prevents using incomplete codons
+                continue
+
+            # below, we establish the index ranges of our candidates relative to the overall alignment column
+            # e.g., alignment column:  0 1 2 3 4 5 6 7 8 9
+            #       reference:         A A A A T C - G G G
+            #       query:             A A A - T C T G G G
+            #                                └─────┘
+            #                                [3, 7)
+            first = reference_columns[codon_start]
+            last = reference_columns[codon_start + 2] + 1  # exclusive
+            
+            # include either orientation: -GAG/TGA- and ATC-/-TCT
+            while first > 0 and hsp_sbjct[first - 1] == "-":
+                first -= 1
+            while last < len(hsp_sbjct) and hsp_sbjct[last] == "-":
+                last += 1
+
+            # checks that flanking columns exist (we don't evaluate gaps at either end of the HSP)
+            if first == 0 or last == len(hsp_sbjct):
+                continue
+
+            if any(hsp_query[i] not in "ACGT" or hsp_sbjct[i] not in "ACGT" for i in (first - 1, last)):
+                continue
+            if frame_offsets[first] != 0 or frame_offsets[last] != 0:
+                continue
+
+            aligned_query, aligned_reference = hsp_query[first:last], hsp_sbjct[first:last]
+            query_codon = aligned_query.replace("-", "")
+            reference_codon = aligned_reference.replace("-", "")
+
+            if len(query_codon) != 3 or reference_codon != card_dna_ref[codon_start:codon_start + 3]:
+                continue
+            if any(base not in "ACGT" for base in query_codon + reference_codon):
+                continue
+            if list(self.gap_events(aligned_query, aligned_reference, codon_start + 1)) != [left, right]:
+                continue
+
+            original = str(Seq(reference_codon).translate(table=11))
+            change = str(Seq(query_codon).translate(table=11))
+
+            if original == change or original == "*":
+                continue
+
+            if replacements and first < replacements[-1]["alignment_end"]:  # checks that replacements don't overlap
+                continue
+
+            replacements.append({
+                "reference_nucl_index": codon_start,
+                "hsp_reference_start": hsp_sbjct_start,
+                "alignment_start": first, "alignment_end": last,
+                "reference_codon": reference_codon, "query_codon": query_codon,
+                "peptide_change": f"{original}{codon_start // 3 + 1}{'Ter' if change == '*' else change}",
+                "aligned_query": aligned_query, "aligned_reference": aligned_reference,
+                "raw_gap_events": [left, right],
+                })
+
+        # work from the right-end of the alignment so the original alignment-column coordinates stay valid
+        # removing gaps shorten the alignment, so we can't start from the left side (things would shift out of place)
+        for replacement in reversed(replacements):
+            first, last = replacement["alignment_start"], replacement["alignment_end"]
+            hsp_query = hsp_query[:first] + replacement["query_codon"] + hsp_query[last:]
+            hsp_sbjct = hsp_sbjct[:first] + replacement["reference_codon"] + hsp_sbjct[last:]
+
+        return hsp_query, hsp_sbjct, replacements
+
     def gap_events(self, hsp_query, hsp_sbjct, hsp_sbjct_start):
         """
         Tracks non-triplet gap events (not full codon indels) relative to CARD reference nucleotide coordinates
@@ -684,7 +828,7 @@ class MutationsModule(BaseModel):
                 candidate["sequence"] = left_sequence
                 candidates.append(candidate)
 
-            ##right outward search
+            ## right outward search
             right_boundary = boundary
             right_sequence = inserted_sequence      
             while (right_boundary < len(card_dna_ref)
@@ -1024,10 +1168,12 @@ class MutationsModule(BaseModel):
         # nucleotide input
         elif input_type == "contig":
             if not other_mutations:
-                if srv is not None and has_snp:
-                    return [srv] # CASE 1: only SNP
-                else:
-                    return []  
+                # POM retains qualifying hits without a curated SNP, as in
+                # the original OverexpressionModel and the protein-input path.
+                if srv is not None and (has_snp or model_type == "POM"):
+                    return [srv]
+
+                return []
             else:
                 for mutations in other_mutations:
                     merged_mutations["query_def"] = mutations["query_def"]

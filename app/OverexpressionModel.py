@@ -55,6 +55,7 @@ class Overexpression(MutationsModule):
 		fs_result = []
 		indel_result = []
 		ns_result = []
+		replacement_contexts = {}
 
 		if self.dna_xml_file:
 			try:
@@ -63,7 +64,8 @@ class Overexpression(MutationsModule):
 
 					for blastn_record in blastn_records:
 						bnquery_def = blastn_record.query
-						# print(bnquery_def)
+						# print(f"(POM) query definition: {bnquery_def}")
+			
 						if blastn_record.alignments:
 							for alignment in blastn_record.alignments:	
 								alignTitle = alignment.title
@@ -170,8 +172,19 @@ class Overexpression(MutationsModule):
 											mutation_subject = str(Seq(mutation_subject).reverse_complement())
 											mutation_subject_start = hsp.sbjct_end
 
+										consequence_query, consequence_subject, replacements = self.normalize_codon_replacements(
+											mutation_query, mutation_subject, card_dna_ref, mutation_subject_start)
+										
+										if replacements:
+											key = (bnquery_def.split()[0], modelID, seqinModel)
+											stored = replacement_contexts.setdefault(key, [])
+											
+											for replacement in replacements:
+												if replacement not in stored:
+													stored.append(replacement)
+
 										fs_out = self.frameshift(
-											mutation_query, mutation_subject, card_dna_ref, bnquery_def, hsp_sbjct_start=mutation_subject_start, fs_dict_list=fs_dict_list,
+											consequence_query, consequence_subject, card_dna_ref, bnquery_def, hsp_sbjct_start=mutation_subject_start, fs_dict_list=fs_dict_list,
 											param_type=fs_param_type["param_type"] if fs_param_type else None)
 
 										indel_out = self.indel(
@@ -179,7 +192,7 @@ class Overexpression(MutationsModule):
 											curated_del_list=pep_del_dict_list, hsp_sbjct_start=mutation_subject_start)
 
 										ns_out = self.nonsense(
-											mutation_query, mutation_subject, card_dna_ref, bnquery_def, mutation_subject_start, ns_dict_list=ns_dict_list,
+											consequence_query, consequence_subject, card_dna_ref, bnquery_def, mutation_subject_start, ns_dict_list=ns_dict_list,
 											param_type=ns_param_type["param_type"] if ns_param_type else None)
 
 										# fetch mutations from MM
@@ -240,7 +253,7 @@ class Overexpression(MutationsModule):
 						underscoreinMD = modelDescrpt.index('_')
 						modelID = modelDescrpt[0:underscoreinMD]
 						seqinModel = modelDescrpt[underscoreinMD +
-												  1: modelDescrpt.index(' ')]
+													1: modelDescrpt.index(' ')]
 
 						init = 0
 						snp_header = self.extract_nth_bar(alignTitle, 2)
@@ -328,6 +341,11 @@ class Overexpression(MutationsModule):
 									ppinsidedict["type_match"] = "Perfect"
 									ppinsidedict["ast_source"] = ""
 									ppinsidedict["model_id"] = modelID
+
+									replacements = replacement_contexts.get((query_id, modelID, seqinModel))
+									if replacements:
+										ppinsidedict["alignment_replacements"] = replacements
+
 									ppinsidedict["orf_strand"] = self.extract_nth_bar(orfInfo.decode(), 0)
 									ppinsidedict["orf_start"] = self.extract_nth_bar(orfInfo.decode(), 1)
 									ppinsidedict["orf_end"] = self.extract_nth_bar(orfInfo.decode(), 2)									
@@ -411,10 +429,17 @@ class Overexpression(MutationsModule):
 										hitid.decode(), init)] = ppinsidedict
 									init += 1
 
-								for srv_result in self.single_resistance_variant(
+								srv_results = list(self.single_resistance_variant(
 									"POM", snpdictlist, hsp.query, hsp.sbjct_start, hsp.sbjct, orfInfo, bpquery_def, 
 									pred_genes_dict_prot=predicted_genes_dict, sub_prot_dict=submitted_proteins_dict, real_qry_length=realQueryLength
-								):
+									))
+
+								# like the original snp_counter fallback, retain no-SNP records only 
+								# when this HSP has no matching curated SNP
+								if any(result.get("has_snp", False) for result in srv_results):
+									srv_results = [result for result in srv_results if result.get("has_snp", False)]
+
+								for srv_result in srv_results:
 									mm_output = self.consolidate_mutations(
 										self.input_type, 
 										hitid.decode(), 
@@ -453,6 +478,11 @@ class Overexpression(MutationsModule):
 											sinsidedict["model_type"] = json_data[modelID]["model_type"]
 											sinsidedict["model_type_id"] = modelTypeID
 											sinsidedict["model_id"] = modelID
+
+											replacements = replacement_contexts.get((query_id, modelID, seqinModel))
+											if replacements:
+												sinsidedict["alignment_replacements"] = replacements
+
 											sinsidedict["snp"] = mm_record["eachs"]
 											sinsidedict["pass_evalue"] = pass_evalue
 											sinsidedict["pass_bitscore"] = pass_bitscore
@@ -555,6 +585,11 @@ class Overexpression(MutationsModule):
 											insidedict["model_type"] = json_data[modelID]["model_type"]
 											insidedict["model_type_id"] = modelTypeID
 											insidedict["model_id"] = modelID
+
+											replacements = replacement_contexts.get((query_id, modelID, seqinModel))
+											if replacements:
+												insidedict["alignment_replacements"] = replacements
+
 											insidedict["pass_evalue"] = pass_evalue
 											insidedict["pass_bitscore"] = pass_bitscore
 											insidedict["ARO_accession"] = json_data[modelID]["ARO_accession"]
@@ -668,6 +703,11 @@ class Overexpression(MutationsModule):
 										linsidedict["pass_evalue"] = pass_evalue
 										linsidedict["pass_bitscore"] = pass_bitscore
 										linsidedict["model_id"] = modelID
+
+										replacements = replacement_contexts.get((query_id, modelID, seqinModel))
+										if replacements:
+											linsidedict["alignment_replacements"] = replacements
+											
 										linsidedict["ARO_accession"] = json_data[modelID]["ARO_accession"]
 										linsidedict["ARO_name"] = json_data[modelID]["ARO_name"]
 										linsidedict["ARO_category"] = json_data[modelID]["ARO_category"]
