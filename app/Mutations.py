@@ -601,7 +601,7 @@ class MutationsModule(BaseModel):
                 reference_columns[reference_index] = column
                 reference_index += 1
 
-                change = int(query_base != "-") - int(subject_base != "-")  # FUNKY: a snpashot of the frame offset (query relative to the reference)
+            change = int(query_base != "-") - int(subject_base != "-")  # FUNKY: a snpashot of the frame offset (query relative to the reference)
             frame_offsets.append((frame_offsets[-1] + change) % 3)  # the running frame offset based on the last column + the change from the current
                                                                     # % 3 because we're working with codon indeces: 0, 1, 2
 
