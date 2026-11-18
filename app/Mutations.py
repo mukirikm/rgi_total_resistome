@@ -218,7 +218,7 @@ class MutationsModule(BaseModel):
         """
         Searches for frameshifts in nucleotide sequences.
 
-        ** Code optimized with Codex **
+        ** Optimized with Codex **
         """
         
         fs_result_prelim = {}
@@ -231,6 +231,10 @@ class MutationsModule(BaseModel):
 
         fs_curated_result_HGVS = []
         fs_denovo_result_HGVS = []
+        fs_equivalents = {
+            "curated": {},
+            "de_novo": {}
+            }
 
         if fs_dict_list is None:
             fs_dict_list = []
@@ -240,8 +244,14 @@ class MutationsModule(BaseModel):
 
         # print(f"query_def: {query_def}")
 
-        for raw_event in self.gap_events(hsp_query, hsp_sbjct, hsp_sbjct_start):
+        raw_events = list(self.gap_events(hsp_query, hsp_sbjct, hsp_sbjct_start))
 
+        if not any(event["is_frameshift"] and event["reference_nucl_index"] is not None for event in raw_events):
+            return None
+
+        reference_start, reference_end, mismatch_indices = self.alignment_context(hsp_query, hsp_sbjct, hsp_sbjct_start)
+
+        for event_index, raw_event in enumerate(raw_events):
             if not raw_event["is_frameshift"] or raw_event["reference_nucl_index"] is None:
                 continue
 
@@ -274,6 +284,21 @@ class MutationsModule(BaseModel):
                 fs_denovo_list_validation.append(fs_validation)
                 fs_denovo_result_HGVS.append(fs_hgvs)
 
+            alternatives = self.frameshift_equivalent_labels(
+                raw_event, card_dna_ref, event, fs_validation,
+                reference_start, reference_end,
+                raw_events[:event_index] + raw_events[event_index + 1:],
+                mismatch_indices
+                )
+
+            if alternatives:
+                bucket = "curated" if is_curated else "de_novo"
+                stored = fs_equivalents[bucket].setdefault(fs_validation, [])
+
+                for label in alternatives:
+                    if label not in stored:
+                        stored.append(label)
+
         fs_curated_list_validation = list(dict.fromkeys(fs_curated_list_validation))  
         fs_denovo_list_validation = list(dict.fromkeys(fs_denovo_list_validation))
         fs_curated_result_HGVS = list(dict.fromkeys(fs_curated_result_HGVS))
@@ -295,6 +320,8 @@ class MutationsModule(BaseModel):
                 fs_result_prelim["mutations"]["curated"] = fs_curated_list_validation
             if fs_denovo_result_HGVS:
                 fs_result_prelim["mutations"]["de_novo"] = fs_denovo_list_validation
+            if any(fs_equivalents.values()):
+                fs_result_prelim["mutations"]["equivalents"] = fs_equivalents
 
         elif not fs_curated_result_HGVS and not fs_denovo_result_HGVS:
             return None
@@ -336,25 +363,9 @@ class MutationsModule(BaseModel):
         if not has_codon_indel:  # if there are no indels in the event list, return None
             return None
 
-        ###
-        # when checking for equivalent indel positions in stretches of repeated sequence (in the CARD reference), 
-        # we have to make sure that other mutations (i.e., SNVs) aren't hiding in those same positions in
-        # the query sequence! those positions must be blocked and should not be considered for equivalency
-        ###
-        reference_start = hsp_sbjct_start - 1
-        reference_end = reference_start + len(hsp_sbjct.replace("-", ""))
-        mismatch_indices = set()  # we don't care about order and we don't need dupes
-        reference_index = reference_start
-
-        for query_base, subject_base in zip(hsp_query, hsp_sbjct):
-            if subject_base != "-":
-                if query_base != "-" and (
-                    query_base != subject_base
-                    or query_base not in "ACGT"  # if an N slips in for whatever reason
-                ):
-                    mismatch_indices.add(reference_index)
-
-                reference_index += 1
+        reference_start, reference_end, mismatch_indices = self.alignment_context(
+            hsp_query, hsp_sbjct, hsp_sbjct_start
+        )
 
         for event_index, raw_event in enumerate(raw_events):  # keeping the indeces of the gap events allows us to keep
                                                               # track of how alternative palcements are shifting and what
@@ -580,7 +591,7 @@ class MutationsModule(BaseModel):
         
         Returned evidence retains the original gaps. Inputs are already oriented along the forward CARD reference.
 
-        ** Code optimized with Codex **
+        ** Optimized with Codex **
         """
 
         if len(hsp_query) != len(hsp_sbjct):
@@ -697,11 +708,80 @@ class MutationsModule(BaseModel):
 
         return hsp_query, hsp_sbjct, replacements
 
+    @staticmethod
+    def alignment_context(hsp_query, hsp_sbjct, hsp_sbjct_start):
+        """
+        Return zero-based reference bounds and mismatch positions for the alignment.
+
+        ** Optimized with Codex **
+        """
+
+        ###
+        # when checking for equivalent indel positions in stretches of repeated sequence (in the CARD reference),
+        # we have to make sure that other mutations (i.e., SNVs) aren't hiding in those same positions in
+        # the query sequence! those positions must be blocked and should not be considered for equivalency
+        ###
+        reference_start = hsp_sbjct_start - 1
+        mismatch_indices = set()  # we don't care about order and we don't need dupes
+        reference_index = reference_start
+
+        for query_base, subject_base in zip(hsp_query, hsp_sbjct):
+            if subject_base != "-":
+                if query_base != "-" and (
+                    query_base != subject_base
+                    or query_base not in "ACGT"  # if an N slips in for whatever reason
+                    ):
+                    mismatch_indices.add(reference_index)
+
+                reference_index += 1
+
+        return reference_start, reference_index, mismatch_indices
+
+    @staticmethod
+    def gap_move_is_supported(event, candidate, other_events, mismatch_indices):
+        """
+        Check whether moving a gap would cross a mismatch or another gap.
+
+        ** Optimized with Codex **
+        """
+
+        def affected_interval(candidate):
+            start = candidate["reference_nucl_index"]
+            if candidate["type"] == "insertion":
+                # insertions occur between reference bases, so the start and end are the same index (e.g., 6, 6)
+                # a leading insertion has no preceding reference base and sits at boundary 0
+                boundary = 0 if start is None else start + 1
+                return boundary, boundary
+
+            return start, start + candidate["length"]  # deletions do not (e.g., indeces: 6, 9 (6,7,8) >> 9 is not included)
+
+        original_start, original_end = affected_interval(event)
+
+        candidate_start, candidate_end = affected_interval(candidate)
+        moved_start = min(original_start, candidate_start)
+        moved_end = max(original_end, candidate_end)
+
+        # if any index of the candidate (query) is a mismatch to the reference, skip it
+        if any(moved_start <= index < moved_end for index in mismatch_indices):
+            return False
+
+        # checking if the equivalent crosses any OTHER gap events in the query
+        if any(
+            (moved_start <= affected_interval(other)[0] <= moved_end)  # checking that the mutation doesn't cross an insertion bounary
+            if other["type"] == "insertion" else
+            (affected_interval(other)[0] < moved_end  # checking that it doesn't interact with the span of a deletion
+                and affected_interval(other)[1] > moved_start)
+            for other in other_events
+            ):
+            return False
+
+        return True
+
     def gap_events(self, hsp_query, hsp_sbjct, hsp_sbjct_start):
         """
         Tracks non-triplet gap events (not full codon indels) relative to CARD reference nucleotide coordinates
 
-        ** Code optimized with Codex **
+        ** Optimized with Codex **
         """
         if len(hsp_query) != len(hsp_sbjct):
             raise ValueError("Aligned query and subject must have equal lengths.")
@@ -774,7 +854,7 @@ class MutationsModule(BaseModel):
         """
         Searches from the start of a gap event outwards and returns every equivalent alignment position for a gap event found in stretches of repeated sequence.
 
-        ** Code optimized with Codex **
+        ** Optimized with Codex **
         """
         # print(f"card DNA reference\n{card_dna_ref}\n")
         candidates = [event]  # the intial gap event is the only candidate to start -- we intialized the list with our baseline gap event
@@ -853,7 +933,7 @@ class MutationsModule(BaseModel):
         """
         Looks at all gap event candidates, sees if there's a match to a CARD curated frameshift, and chooses the curated option if possible.
         
-        ** Code optimized with Codex **
+        ** Optimized with Codex **
         """
         curated_candidates = []
 
@@ -879,11 +959,61 @@ class MutationsModule(BaseModel):
 
         return event, False
 
+    def frameshift_equivalent_labels(self, raw_event, card_dna_ref, selected_event, reported_label,
+                                     reference_start, reference_end, other_events, mismatch_indices):
+        """
+        Finds appropriate equivalent labels for one frameshift (if any).
+        Returns the labels for the caller to attach.
+
+        Equivalents must remain in the supporting HSP and cannot interfere with
+        other gap events (indels, frameshifts) or a mismatching aligned base.
+
+        ** Optimized with Codex **
+        """
+
+        labels = []
+        selected_supported = False
+
+        candidates = sorted(
+            self.equivalent_gap_events(raw_event, card_dna_ref),
+            key=lambda candidate: candidate["reference_nucl_index"]
+            )
+
+        for candidate in candidates:
+            anchor = candidate["reference_nucl_index"]
+            codon_start = (anchor // 3) * 3
+            codon_end = codon_start + 3
+
+            # safety checks!
+            if codon_start < reference_start or codon_end > reference_end:
+                continue
+            if candidate["type"] == "deletion" and anchor + candidate["length"] > reference_end:
+                continue
+            if not self.gap_move_is_supported(raw_event, candidate, other_events, mismatch_indices):
+                continue
+
+            codon = card_dna_ref[codon_start:codon_end]
+
+            if len(codon) != 3 or any(base not in "ACGT" for base in codon):
+                continue
+
+            if candidate == selected_event:
+                selected_supported = True
+
+            reference_aa = str(Seq(codon).translate(table=11))
+            label = f"{reference_aa}{anchor // 3 + 1}fs"
+
+            if label != reported_label and label not in labels:
+                labels.append(label)
+
+        # if the primary placement does not pass the safety guards, do not attach equivalents
+        return labels if selected_supported else []
+
     def indel_event_to_hgvs(self, event, card_dna_ref):
         """
         Returns an indel as an HGVS-like string for codon-aligned events.
         
-        ** Code optimized with Codex **
+        ** Optimized with Codex **
         """
 
         event_start = event["reference_nucl_index"]
@@ -932,7 +1062,8 @@ class MutationsModule(BaseModel):
 
         return None
 
-    def indel_equivalent_labels(self, event, card_dna_ref, reported_label, reference_start=0, reference_end=None, other_events=(), mismatch_indices=()):
+    def indel_equivalent_labels(self, event, card_dna_ref, reported_label, reference_start=0,
+                                reference_end=None, other_events=(), mismatch_indices=()):
         """
         Finds appropriate equivalent labels for one indel (if any).
         Returns the labels for the caller to attach.
@@ -940,7 +1071,7 @@ class MutationsModule(BaseModel):
         Equivalents must remain in the supporting HSP and cannot interfere with 
         other gap events (indels, frameshifts) or a mismatching aligned base.
 
-        ** Code optimized with Codex **
+        ** Optimized with Codex **
         """
         
         if event["is_frameshift"] or event["reference_nucl_index"] is None:
@@ -949,14 +1080,6 @@ class MutationsModule(BaseModel):
         if reference_end is None:
             reference_end = len(card_dna_ref)
 
-        def affected_interval(candidate):
-            start = candidate["reference_nucl_index"]
-            if candidate["type"] == "insertion":
-                return start + 1, start + 1  # insertions occur between reference bases, so the start and end are the same index (e.g., indeces: 6, 6)
-            
-            return start, start + candidate["length"]  # deletions do not (e.g., indeces: 6, 9 (6,7,8) >> 9 is not included)
-
-        original_start, original_end = affected_interval(event)
         labels = []
 
         candidates = sorted(  # sorting the candidates by index and sequence (alphabetically)
@@ -972,25 +1095,12 @@ class MutationsModule(BaseModel):
                 if start < reference_start or end > reference_end:
                     continue
             else:
-                # Insertion labels need both complete flanking CARD codons.
+                # insertion labels need both complete flanking CARD codons
                 if start - 2 < reference_start or start + 4 > reference_end:
                     continue
 
-            candidate_start, candidate_end = affected_interval(candidate)
-            moved_start = min(original_start, candidate_start)
-            moved_end = max(original_end, candidate_end)
-
-            # if any index of the candidate (query) is a mismatch to the reference, skip it
-            if any(moved_start <= index < moved_end for index in mismatch_indices):
-                continue
-
-            # checking if the equivalent crosses any OTHER gap events in the query
-            if any(
-                (moved_start <= affected_interval(other)[0] <= moved_end)  # checking that the mutation doesn't cross an insertion bounary
-                if other["type"] == "insertion" else
-                (affected_interval(other)[0] < moved_end  # checking that it doesn't interact with the span of a deletion
-                 and affected_interval(other)[1] > moved_start)
-                for other in other_events
+            if not self.gap_move_is_supported(
+                event, candidate, other_events, mismatch_indices
             ):
                 continue
 
@@ -1008,7 +1118,7 @@ class MutationsModule(BaseModel):
         """
         Looks at all gap event candidates, sees if there's a match to a CARD curated indel, and chooses the curated option if possible.
 
-        ** Code optimized with Codex **
+        ** Optimized with Codex **
         """
 
         curated_indels = {
@@ -1049,7 +1159,7 @@ class MutationsModule(BaseModel):
         Yields directly mappable nonsense mutations.
         Does not handle STOPs inside frameshifted/gap-containing codons.
 
-        ** Code optimized with Codex **
+        ** Optimized with Codex **
         """
 
         if len(hsp_query) != len(hsp_sbjct):  # needed so that our later zip() doesn't stop short

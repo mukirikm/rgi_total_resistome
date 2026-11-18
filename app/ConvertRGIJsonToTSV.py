@@ -556,10 +556,10 @@ class ConvertJsonToTSV(object):
         h["Percentage Length of Reference Sequence"] = "Percentage Length of Reference Sequence"
         h["ID"] = "HSP identifier (internal to RGI)"
         h["Model_ID"] = "CARD detection model id"
-        h["Curated_Mutations"] = "CARD-curated mutations (not SNVs) observed in the ARO term of top hit in CARD; equivalent indel descriptions appear as (equiv: label | label)"
-        h["Curated_Mutation_Types"] = "Corresponding mutation type labels for the groups of mutations listed in 'Curated_Mutations', e.g., indel; frameshift; nonense"
-        h["De_novo_Mutations"] = "Newly discovered mutations (not SNVs; not curated in CARD) observed in the ARO term of top hit in CARD; equivalent indel descriptions appear as (equiv: label | label)"
-        h["De_novo_Mutation_Types"] = "Corresponding mutation type labels for the groups of mutations listed in 'De_novo_Mutations', e.g., indel; frameshift; nonense"
+        h["Curated_Mutations"] = "CARD-curated mutations (not SNVs) observed in the ARO term of top hit in CARD. Equivalent indel and frameshift labels appear as (equiv: label | label)."
+        h["Curated_Mutation_Types"] = "Corresponding mutation type labels for the groups of mutations listed in 'Curated_Mutations', e.g., indel; frameshift; nonsense"
+        h["De_novo_Mutations"] = "Newly discovered mutations (not SNVs or CARD-curated) observed in the ARO term of top hit in CARD. Equivalent indel and frameshift labels appear as (equiv: label | label)."
+        h["De_novo_Mutation_Types"] = "Corresponding mutation type labels for the groups of mutations listed in 'De_novo_Mutations', e.g., indel; frameshift; nonsense"
 
         print("\n")
         print("COLUMN", "\t\t\t", "HELP_MESSAGE")
